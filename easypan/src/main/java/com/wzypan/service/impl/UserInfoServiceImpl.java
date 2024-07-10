@@ -142,9 +142,9 @@ public class UserInfoServiceImpl extends ServiceImpl<UserInfoMapper, UserInfo> i
         File folder = new File(avatarFolderName);
         log.info(folder.getAbsolutePath());
         if (!folder.exists()) {
-            boolean created = folder.mkdirs();
+            folder.mkdirs();
         }
-        String avatarPath = avatarFolderName + userId + Constants.AVATAR_SUFFIX;
+        String avatarPath = avatarFolderName + "/" + userId + Constants.AVATAR_SUFFIX;
 //        log.info(avatarPath);
         File file = new File(avatarPath);
         if (!file.exists()) {
@@ -153,8 +153,8 @@ public class UserInfoServiceImpl extends ServiceImpl<UserInfoMapper, UserInfo> i
                 printNoDefaultImage(response);
             }
             avatarPath = default_avatar.getPath();
-            FileUtils.readFile(response, avatarPath);
         }
+        FileUtils.readFile(response, avatarPath);
     }
 
     @Override
@@ -162,7 +162,7 @@ public class UserInfoServiceImpl extends ServiceImpl<UserInfoMapper, UserInfo> i
         SessionWebUserDto sessionWebUserDto = (SessionWebUserDto) session.getAttribute(Constants.SESSION_KEY);
         String baseFolder = appConfig.getProjectFolder() + Constants.FILE_FOLDER_FILE + Constants.FILE_FOLDER_AVATAR_NAME;
         File targetFolder = new File(baseFolder);
-        File targetFile = new File(targetFolder.getParent() + "/" + sessionWebUserDto.getUserId() + Constants.AVATAR_SUFFIX);
+        File targetFile = new File(targetFolder.getPath() + "/" + sessionWebUserDto.getUserId() + Constants.AVATAR_SUFFIX);
         if (!targetFolder.exists()) {
             targetFolder.mkdirs();
         }
