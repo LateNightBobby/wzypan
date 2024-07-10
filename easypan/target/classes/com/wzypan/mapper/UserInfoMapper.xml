@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.wzypan.mapper.UserInfoMapper">
+
+    <!-- 通用查询映射结果 -->
+    <resultMap id="BaseResultMap" type="com.wzypan.entity.po.UserInfo">
+        <id column="user_id" property="userId" />
+        <result column="nick_name" property="nickName" />
+        <result column="email" property="email" />
+        <result column="qq_open_id" property="qqOpenId" />
+        <result column="qq_avatar" property="qqAvatar" />
+        <result column="password" property="password" />
+        <result column="join_time" property="joinTime" />
+        <result column="last_login_time" property="lastLoginTime" />
+        <result column="status" property="status" />
+        <result column="use_space" property="useSpace" />
+        <result column="total_space" property="totalSpace" />
+    </resultMap>
+
+    <!-- 通用查询结果列 -->
+    <sql id="Base_Column_List">
+        user_id, nick_name, email, qq_open_id, qq_avatar, password, join_time, last_login_time, status, use_space, total_space
+    </sql>
+
+    <select id="selectByEmail" resultType="com.wzypan.entity.po.UserInfo">
+        select <include refid="Base_Column_List"/>
+        from user_info
+        where email = #{email}
+    </select>
+</mapper>
