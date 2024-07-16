@@ -35,11 +35,9 @@ public class AppConfig {
     @Value("${qq.url.openid}")
     private String qqUrlOpenid;
 
-    @Getter
     @Value("${qq.url.user.info}")
     private String qqUrlUserInfo;
 
-    @Getter
     @Value("${qq.url.redirect}")
     private String qqUrlRedirect;
 

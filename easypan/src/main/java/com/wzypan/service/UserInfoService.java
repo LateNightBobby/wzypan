@@ -8,6 +8,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
+import java.io.UnsupportedEncodingException;
 
 /**
  * <p>
@@ -29,4 +30,6 @@ public interface UserInfoService extends IService<UserInfo> {
     void getAvatar(HttpServletResponse response, String userId);
 
     void updateAvatar(HttpSession session, MultipartFile avatar);
+
+    String qqlogin(HttpSession session, String callBackUrl) throws UnsupportedEncodingException;
 }

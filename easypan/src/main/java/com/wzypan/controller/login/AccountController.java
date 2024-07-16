@@ -27,6 +27,7 @@ import javax.annotation.Resource;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 
 
 /**
@@ -182,6 +183,14 @@ public class AccountController {
         userInfo.setPassword(StringTools.encodeByMd5(password));
         userInfoService.updateById(userInfo);
         return Result.success();
+    }
+
+    @PostMapping("qqlogin")
+    @GlobalInterceptor(checkParams = true)
+    public Result qqlogin (HttpSession session, String callBackUrl) throws UnsupportedEncodingException {
+        String url = userInfoService.qqlogin(session, callBackUrl);
+
+        return Result.success(url);
     }
 
     private SessionWebUserDto getUserInfoFromSession(HttpSession session) {

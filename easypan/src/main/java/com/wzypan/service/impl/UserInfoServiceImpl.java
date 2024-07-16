@@ -30,6 +30,8 @@ import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 import java.io.File;
 import java.io.PrintWriter;
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
 import java.util.Date;
 
 /**
@@ -178,6 +180,17 @@ public class UserInfoServiceImpl extends ServiceImpl<UserInfoMapper, UserInfo> i
         userInfoMapper.updateById(userInfo);
         sessionWebUserDto.setAvatar(null);
         session.setAttribute(Constants.SESSION_KEY, sessionWebUserDto);
+    }
+
+    @Override
+    public String qqlogin(HttpSession session, String callBackUrl) throws UnsupportedEncodingException {
+        //生成随机数作为key 用于session跳回
+        String state = StringTools.getRandomNumber(30);
+        if (!StringTools.isEmpty(state)) {
+            session.setAttribute(state, callBackUrl);
+        }
+        String url = String.format(appConfig.getQqUrlAuthorization(), appConfig.getQqAppId(), URLEncoder.encode(appConfig.getQqUrlRedirect(), "utf-8"), state);
+        return url;
     }
 
     private void printNoDefaultImage(HttpServletResponse response) {
