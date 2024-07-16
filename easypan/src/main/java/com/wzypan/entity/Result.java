@@ -1,5 +1,6 @@
 package com.wzypan.entity;
 
+import com.wzypan.entity.enums.ResponseCodeEnum;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -17,14 +18,14 @@ public class Result {
 
     //增删改 成功响应
     public static Result success(){
-        return new Result("success","请求成功",null, 200);
+        return new Result("success","请求成功",null, ResponseCodeEnum.CODE_200.getCode());
     }
     //查询 成功响应
     public static Result success(Object data){
-        return new Result("success","请求成功",data, 200);
+        return new Result("success","请求成功",data, ResponseCodeEnum.CODE_200.getCode());
     }
     //失败响应
-    public static Result error(String msg){
-        return new Result("fail",msg,null, 404);
+    public static Result error(Integer code, String msg){
+        return new Result("fail",msg,null, code);
     }
 }
