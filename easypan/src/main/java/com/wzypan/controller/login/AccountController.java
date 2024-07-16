@@ -138,7 +138,7 @@ public class AccountController {
     }
 
     @RequestMapping("/getAvatar/{userId}")
-    @GlobalInterceptor(checkParams = true)
+    @GlobalInterceptor(checkParams = true, checkLogin = true)
     public Result getAvatar(HttpServletResponse response, @VerifyParam(required = true) @PathVariable("userId") String userId) {
         userInfoService.getAvatar(response, userId);
         response.setContentType("image/jpg");
@@ -146,28 +146,27 @@ public class AccountController {
     }
 
     @PostMapping("/updateUserAvatar")
-    @GlobalInterceptor(checkParams = true)
+    @GlobalInterceptor(checkParams = true, checkLogin = true)
     public Result updateUserAvatar(HttpSession session, @VerifyParam(required = true) MultipartFile avatar) {
         userInfoService.updateAvatar(session, avatar);
         return Result.success();
     }
 
     @RequestMapping("/getUserInfo")
-    @GlobalInterceptor(checkParams = true)
+    @GlobalInterceptor(checkLogin = true)
     public Result getUserInfo(HttpSession session) {
         SessionWebUserDto sessionWebUserDto = getUserInfoFromSession(session);
         return Result.success(sessionWebUserDto);
     }
 
     @RequestMapping("/logout")
-    @GlobalInterceptor(checkParams = true)
     public Result logout(HttpSession session) {
         session.invalidate();
         return Result.success();
     }
 
     @RequestMapping("/getUseSpace")
-    @GlobalInterceptor(checkParams = true)
+    @GlobalInterceptor(checkLogin = true)
     public Result getUseSpace(HttpSession session) {
         SessionWebUserDto sessionWebUserDto = getUserInfoFromSession(session);
         UserSpaceDto userSpaceDto = userInfoService.getUseSpace(sessionWebUserDto.getUserId());
@@ -175,7 +174,7 @@ public class AccountController {
     }
 
     @PostMapping("/updatePassword")
-    @GlobalInterceptor(checkParams = true)
+    @GlobalInterceptor(checkParams = true, checkLogin = true)
     public Result updatePassword(HttpSession session,
             @VerifyParam(required = true, regex = VerifyRegexEnum.PASSWORD) String password) {
         SessionWebUserDto webUserDto = getUserInfoFromSession(session);
@@ -186,7 +185,11 @@ public class AccountController {
     }
 
     private SessionWebUserDto getUserInfoFromSession(HttpSession session) {
-        return (SessionWebUserDto) session.getAttribute(Constants.SESSION_KEY);
+        SessionWebUserDto userDto = (SessionWebUserDto) session.getAttribute(Constants.SESSION_KEY);
+        if (userDto==null) {
+            throw new BusinessException(ResponseCodeEnum.CODE_901);
+        }
+        return userDto;
     }
 }
 
