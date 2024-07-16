@@ -7,6 +7,7 @@ import com.wzypan.entity.constants.Constants;
 import com.wzypan.entity.dto.SessionWebUserDto;
 import com.wzypan.entity.dto.SysSettingsDto;
 import com.wzypan.entity.dto.UserSpaceDto;
+import com.wzypan.entity.enums.ResponseCodeEnum;
 import com.wzypan.entity.enums.UserStatusEnum;
 import com.wzypan.entity.po.UserInfo;
 import com.wzypan.exception.BusinessException;
@@ -63,12 +64,12 @@ public class UserInfoServiceImpl extends ServiceImpl<UserInfoMapper, UserInfo> i
         //检测邮箱是否已注册
         UserInfo userInfo = userInfoMapper.selectByEmail(email);
         if (userInfo != null) {
-            throw new BusinessException("already exist this email");
+            throw new BusinessException(ResponseCodeEnum.CODE_601.getCode(), "already exist this email");
         }
         //昵称是否已使用
         Integer nickNameCount = userInfoMapper.selectCount(new LambdaQueryWrapper<UserInfo>().eq(UserInfo::getNickName, nickName));
         if (nickNameCount != 0) {
-            throw new BusinessException("existed nick name");
+            throw new BusinessException(ResponseCodeEnum.CODE_601.getCode(), "existed nick name");
         }
         //校验邮箱验证码
         emailCodeService.verifyEmailCode(email, emailCode);
@@ -88,11 +89,11 @@ public class UserInfoServiceImpl extends ServiceImpl<UserInfoMapper, UserInfo> i
         //登录账号密码校验
         UserInfo userInfo = userInfoMapper.selectByEmail(email);
         if (userInfo==null || !userInfo.getPassword().equals(password)) {
-            throw new BusinessException("wrong email or password");
+            throw new BusinessException(ResponseCodeEnum.CODE_600.getCode(), "wrong email or password");
         }
 
         if (userInfo.getStatus().equals(UserStatusEnum.DISABLE.getStatus())) {
-            throw new BusinessException("disabled account");
+            throw new BusinessException(ResponseCodeEnum.CODE_600.getCode(), "disabled account");
         }
         //更新登录时间
         userInfo.setLastLoginTime(new Date());
@@ -121,7 +122,7 @@ public class UserInfoServiceImpl extends ServiceImpl<UserInfoMapper, UserInfo> i
         //检测邮箱是否已注册
         UserInfo userInfo = userInfoMapper.selectByEmail(email);
         if (userInfo == null) {
-            throw new BusinessException("not found this email");
+            throw new BusinessException(ResponseCodeEnum.CODE_600.getCode(), "not found this email");
         }
         //邮箱验证码是否正确
         emailCodeService.verifyEmailCode(email, emailCode);

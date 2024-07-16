@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.wzypan.entity.config.AppConfig;
 import com.wzypan.entity.constants.Constants;
 import com.wzypan.entity.dto.SysSettingsDto;
+import com.wzypan.entity.enums.ResponseCodeEnum;
 import com.wzypan.entity.po.EmailCode;
 import com.wzypan.entity.po.UserInfo;
 import com.wzypan.exception.BusinessException;
@@ -61,7 +62,7 @@ public class EmailCodeServiceImpl extends ServiceImpl<EmailCodeMapper, EmailCode
             wrapper.eq(UserInfo::getEmail, email);
             UserInfo userInfo = userInfoMapper.selectOne(wrapper);
             if (userInfo != null) {
-                throw new BusinessException("existed email");
+                throw new BusinessException(ResponseCodeEnum.CODE_601.getCode(), "existed email");
             }
         }
         String code = StringTools.getRandomNumber(Constants.LENGTH_5);
@@ -98,7 +99,7 @@ public class EmailCodeServiceImpl extends ServiceImpl<EmailCodeMapper, EmailCode
 
         } catch (Exception e) {
             log.error("fail to send message");
-            throw new BusinessException("fail to send message");
+            throw new BusinessException(ResponseCodeEnum.CODE_500.getCode(), "fail to send message");
         }
     }
 
@@ -108,10 +109,10 @@ public class EmailCodeServiceImpl extends ServiceImpl<EmailCodeMapper, EmailCode
         wrapper.eq(EmailCode::getEmail, email).eq(EmailCode::getStatus, Constants.STATUS_USED);
         EmailCode emailCode = emailCodeMapper.selectOne(wrapper);
         if (emailCode == null || !Objects.equals(emailCode.getCode(), code)) {
-            throw new BusinessException("wrong email code");
+            throw new BusinessException(ResponseCodeEnum.CODE_600.getCode(), "wrong email code");
         }
         if (System.currentTimeMillis() - emailCode.getCreateTime().getTime() > Constants.EMAIL_CODE_VALID_PERIOD_MIN * 60 * 1000) {
-            throw new BusinessException("email code expired");
+            throw new BusinessException(ResponseCodeEnum.CODE_600.getCode(), "email code expired");
         }
         emailCodeMapper.disableEmailCode(email);
     }

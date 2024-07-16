@@ -8,6 +8,7 @@ import com.wzypan.entity.constants.Constants;
 import com.wzypan.entity.dto.CreateImageCode;
 import com.wzypan.entity.dto.SessionWebUserDto;
 import com.wzypan.entity.dto.UserSpaceDto;
+import com.wzypan.entity.enums.ResponseCodeEnum;
 import com.wzypan.entity.enums.VerifyRegexEnum;
 import com.wzypan.entity.po.UserInfo;
 import com.wzypan.exception.BusinessException;
@@ -71,7 +72,7 @@ public class AccountController {
                                 @VerifyParam(required = true) Integer type) {
         try {
             if (!checkCode.equalsIgnoreCase((String) session.getAttribute(Constants.CHECK_CODE_KEY_EMAIL))) {
-                throw new BusinessException("wrong verify code");
+                throw new BusinessException(ResponseCodeEnum.CODE_600.getCode(), "wrong verify code");
             }
             emailCodeService.sendEmailCode(email, type);
             return Result.success();
@@ -91,7 +92,7 @@ public class AccountController {
     {
         try {
             if (!checkCode.equalsIgnoreCase((String) session.getAttribute(Constants.CHECK_CODE_KEY))) {
-                throw new BusinessException("wrong verify code");
+                throw new BusinessException(ResponseCodeEnum.CODE_600);
             }
             userInfoService.register(email, nickName, password, emailCode);
             return Result.success();
@@ -108,7 +109,7 @@ public class AccountController {
                         @VerifyParam(required = true) String checkCode) {
         try {
             if (!checkCode.equalsIgnoreCase((String) session.getAttribute(Constants.CHECK_CODE_KEY))) {
-                throw new BusinessException("wrong verify code");
+                throw new BusinessException(ResponseCodeEnum.CODE_600);
             }
             SessionWebUserDto userDto = userInfoService.login(email, password);
             session.setAttribute(Constants.SESSION_KEY, userDto);
@@ -127,7 +128,7 @@ public class AccountController {
                         @VerifyParam(required = true) String emailCode) {
         try {
             if (!checkCode.equalsIgnoreCase((String) session.getAttribute(Constants.CHECK_CODE_KEY))) {
-                throw new BusinessException("wrong verify code");
+                throw new BusinessException(ResponseCodeEnum.CODE_600);
             }
             userInfoService.resetPwd(email, password, emailCode);
             return Result.success();
