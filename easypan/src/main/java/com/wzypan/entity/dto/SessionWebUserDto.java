@@ -8,6 +8,6 @@ import lombok.experimental.Accessors;
 public class SessionWebUserDto {
     private String nickName;
     private String userId;
-    private boolean isAdmin;
+    private boolean admin;
     private String avatar;
 }
