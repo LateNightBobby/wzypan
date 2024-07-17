@@ -6,11 +6,9 @@ import com.wzypan.entity.constants.Constants;
 import com.wzypan.entity.dto.SessionWebUserDto;
 import com.wzypan.entity.enums.ResponseCodeEnum;
 import com.wzypan.exception.BusinessException;
-import com.wzypan.utils.StringTools;
 import com.wzypan.utils.VerifyUtils;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.ibatis.reflection.ArrayUtil;
 import org.aspectj.lang.JoinPoint;
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.annotation.Before;
@@ -105,7 +103,7 @@ public class GlobalOperationAspect {
             throw new BusinessException(ResponseCodeEnum.CODE_901);
         }
 
-        if (checkAdmin && !userDto.isAdmin()) {
+        if (checkAdmin && !userDto.getAdmin()) {
             throw new BusinessException(ResponseCodeEnum.CODE_404.getCode(), "权限不足无法访问");
         }
     }

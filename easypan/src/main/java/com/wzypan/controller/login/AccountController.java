@@ -28,6 +28,8 @@ import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
+import java.util.HashMap;
+import java.util.Map;
 
 
 /**
@@ -185,12 +187,21 @@ public class AccountController {
         return Result.success();
     }
 
-    @PostMapping("qqlogin")
+    @PostMapping("/qqlogin")
     @GlobalInterceptor(checkParams = true)
-    public Result qqlogin (HttpSession session, String callBackUrl) throws UnsupportedEncodingException {
+    public Result qqlogin (HttpSession session, String callBackUrl) {
         String url = userInfoService.qqlogin(session, callBackUrl);
-
         return Result.success(url);
+    }
+
+    @PostMapping("/qqlogin/callback")
+    @GlobalInterceptor(checkParams = true)
+    public Result qqloginCallback (HttpSession session, @VerifyParam(required = true) String code, @VerifyParam(required = true) String state) {
+        String callBackUrl = (String) session.getAttribute(state);
+        Map<String, Object> result = new HashMap<>();
+        SessionWebUserDto userDto = userInfoService.qqLoginCallback(code);
+        result.put(callBackUrl, userDto);
+        return Result.success(result);
     }
 
     private SessionWebUserDto getUserInfoFromSession(HttpSession session) {

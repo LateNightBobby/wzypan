@@ -1,6 +1,6 @@
 package com.wzypan.service.impl;
 
-import ch.qos.logback.core.encoder.EchoEncoder;
+import com.alibaba.fastjson.JSONObject;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.wzypan.entity.config.AppConfig;
 import com.wzypan.entity.constants.Constants;
@@ -16,10 +16,12 @@ import com.wzypan.service.EmailCodeService;
 import com.wzypan.service.UserInfoService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.wzypan.utils.FileUtils;
+import com.wzypan.utils.OKHttpUtils;
 import com.wzypan.utils.RedisComponent;
 import com.wzypan.utils.StringTools;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.ArrayUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,7 +34,10 @@ import java.io.File;
 import java.io.PrintWriter;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * <p>
@@ -183,14 +188,74 @@ public class UserInfoServiceImpl extends ServiceImpl<UserInfoMapper, UserInfo> i
     }
 
     @Override
-    public String qqlogin(HttpSession session, String callBackUrl) throws UnsupportedEncodingException {
+    public String qqlogin(HttpSession session, String callBackUrl) {
         //生成随机数作为key 用于session跳回
         String state = StringTools.getRandomNumber(30);
         if (!StringTools.isEmpty(state)) {
             session.setAttribute(state, callBackUrl);
         }
-        String url = String.format(appConfig.getQqUrlAuthorization(), appConfig.getQqAppId(), URLEncoder.encode(appConfig.getQqUrlRedirect(), "utf-8"), state);
+        String url = String.format(appConfig.getQqUrlAuthorization(), appConfig.getQqAppId(),
+                URLEncoder.encode(appConfig.getQqUrlRedirect(), StandardCharsets.UTF_8), state);
         return url;
+    }
+
+    @Override
+    public SessionWebUserDto qqLoginCallback(String code) {
+        //回调code获取accessToken
+        String accessToken = getQQAccessToken(code);
+        //获取qq token id
+        String qqOpenId = getQQOpenId(accessToken);
+        return null;
+    }
+
+    private String getQQAccessToken(String code) {
+        String accessToken = null;
+        String url = null;
+        url = String.format(appConfig.getQqUrlAccessToken(), appConfig.getQqAppId(),
+                appConfig.getQqAppKey(), code, URLEncoder.encode(appConfig.getQqUrlRedirect(), StandardCharsets.UTF_8));
+        String tokenResult = OKHttpUtils.getRequest(url);
+        if (tokenResult == null || tokenResult.contains(Constants.VIEW_OBJ_RESULT_KEY)) {
+            log.error("获取qqToken失败{}", tokenResult);
+            throw new BusinessException(ResponseCodeEnum.CODE_500.getCode(), "获取qqToken失败");
+        }
+        String[] params = tokenResult.split("&");
+        if (params != null && params.length > 0) {
+            for (String p : params) {
+                if (p.contains("access_toke")) {
+                    accessToken = p.split("=")[1];
+                    break;
+                }
+            }
+        }
+        return accessToken;
+    }
+
+    private String getQQOpenId(String accessToken) throws BusinessException {
+        String url = String.format(appConfig.getQqUrlOpenid(), accessToken);
+        String openIdResult = OKHttpUtils.getRequest(url);
+        String tmpJson = this.getQQResp(openIdResult);
+        if (tmpJson == null) {
+            throw new BusinessException(ResponseCodeEnum.CODE_500.getCode(), "调用qq接口获取openId失败");
+        }
+
+        Map jsonData = JSONObject.parseObject(tmpJson, Map.class);
+        if (jsonData == null || jsonData.containsKey(Constants.VIEW_OBJ_RESULT_KEY)) {
+            throw new BusinessException(ResponseCodeEnum.CODE_500.getCode(), "调用qq接口获取openId失败");
+        }
+        return String.valueOf(jsonData.get("openid"));
+    }
+
+    private String getQQResp(String result) {
+        if (StringUtils.isNotBlank(result)) {
+            int pos = result.indexOf("callback");
+            if (pos != -1) {
+                int start = result.indexOf("(");
+                int end = result.lastIndexOf(")");
+                String jsonStr = result.substring(start + 1, end - 1);
+                return jsonStr;
+            }
+        }
+        return null;
     }
 
     private void printNoDefaultImage(HttpServletResponse response) {
