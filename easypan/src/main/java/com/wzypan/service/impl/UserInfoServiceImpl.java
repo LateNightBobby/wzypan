@@ -11,6 +11,7 @@ import com.wzypan.entity.enums.ResponseCodeEnum;
 import com.wzypan.entity.enums.UserStatusEnum;
 import com.wzypan.entity.po.UserInfo;
 import com.wzypan.exception.BusinessException;
+import com.wzypan.mapper.FileInfoMapper;
 import com.wzypan.mapper.UserInfoMapper;
 import com.wzypan.service.EmailCodeService;
 import com.wzypan.service.UserInfoService;
@@ -32,11 +33,9 @@ import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 import java.io.File;
 import java.io.PrintWriter;
-import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
-import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -61,6 +60,9 @@ public class UserInfoServiceImpl extends ServiceImpl<UserInfoMapper, UserInfo> i
 
     @Resource
     private AppConfig appConfig;
+
+    @Resource
+    private FileInfoMapper fileInfoMapper;
 
     private static final String CONTENT_TYPE = "Content-Type";
     private static final String CONTENT_TYPE_VALUE = "application/json;charset=UTF-8";
@@ -115,7 +117,7 @@ public class UserInfoServiceImpl extends ServiceImpl<UserInfoMapper, UserInfo> i
         else {
             sessionWebUserDto.setAdmin(false);
         }
-        //
+        //获取当前使用空间
         UserSpaceDto userSpaceDto = new UserSpaceDto()
                 .setTotalSpace(userInfo.getTotalSpace())
                 .setUseSpace(userInfo.getUseSpace());

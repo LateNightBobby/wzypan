@@ -6,7 +6,9 @@ public enum ResponseCodeEnum {
     CODE_500(500, "服务器返回错误,请联系管理员"),
     CODE_600(600, "请求参数错误"),
     CODE_601(601, "信息已存在"),
-    CODE_901(901, "登录超时,请重新登录");
+    CODE_901(901, "登录超时,请重新登录"),
+
+    CODE_904(904, "剩余空间不足");
 
 
     private Integer code;

@@ -18,6 +18,8 @@ public class Constants {
     public static final Integer LENGTH_5 = 5;
 
     public static final Integer USER_ID_LENGTH = 12;
+
+    public static final Integer FILE_ID_LENGTH = 10;
     public static final Integer EMAIL_CODE_VALID_PERIOD_MIN = 15;
 
     public static final Integer STATUS_UNUSED = 0;

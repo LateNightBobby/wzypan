@@ -66,7 +66,6 @@ public class EmailCodeServiceImpl extends ServiceImpl<EmailCodeMapper, EmailCode
             }
         }
         String code = StringTools.getRandomNumber(Constants.LENGTH_5);
-        // TODO 发送验证码
         sendEmailWithCode(email, code);
 
         //禁用上一条验证码

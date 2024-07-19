@@ -3,19 +3,30 @@ package com.wzypan.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.wzypan.entity.constants.Constants;
 import com.wzypan.entity.dto.SessionWebUserDto;
-import com.wzypan.entity.enums.FileCategoryEnum;
-import com.wzypan.entity.enums.FileDelFlagEnum;
+import com.wzypan.entity.dto.UploadResultDto;
+import com.wzypan.entity.dto.UserSpaceDto;
+import com.wzypan.entity.enums.*;
 import com.wzypan.entity.page.PageBean;
 import com.wzypan.entity.page.PageQuery;
 import com.wzypan.entity.po.FileInfo;
+import com.wzypan.entity.po.UserInfo;
+import com.wzypan.exception.BusinessException;
 import com.wzypan.mapper.FileInfoMapper;
 import com.wzypan.service.FileInfoService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.wzypan.service.UserInfoService;
+import com.wzypan.utils.RedisComponent;
+import com.wzypan.utils.StringTools;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import javax.annotation.Resource;
+import java.util.Date;
+import java.util.List;
 
 /**
  * <p>
@@ -32,6 +43,12 @@ public class FileInfoServiceImpl extends ServiceImpl<FileInfoMapper, FileInfo> i
     @Resource
     private FileInfoMapper fileInfoMapper;
 
+    @Resource
+    private RedisComponent redisComponent;
+
+    @Resource
+    private UserInfoService userInfoService;
+
     @Override
     public PageBean pageDataList(PageQuery pageQuery, SessionWebUserDto userDto, FileCategoryEnum categoryEnum, String filePid, String fileNameFuzzy) {
         LambdaQueryWrapper<FileInfo> wrapper = new LambdaQueryWrapper<>();
@@ -47,4 +64,71 @@ public class FileInfoServiceImpl extends ServiceImpl<FileInfoMapper, FileInfo> i
         IPage<FileInfo> filePage = fileInfoMapper.selectPage(page, wrapper);
         return PageBean.convertFromPage(filePage);
     }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public UploadResultDto uploadFile(SessionWebUserDto userDto, String fileId, MultipartFile file,
+                                      String fileName, String filePid, String fileMd5, Integer chunkIndex, Integer chunks) {
+
+        UploadResultDto resultDto = new UploadResultDto();
+        if (StringTools.isEmpty(fileId)) {
+            fileId = StringTools.getRandomNumber(Constants.FILE_ID_LENGTH);
+        }
+        resultDto.setFileId(fileId);
+        Date curDate = new Date();
+        UserSpaceDto userSpaceDto = redisComponent.getUserSpace(userDto.getUserId());
+
+        //第一个分片
+        if (chunkIndex == 0) {
+            LambdaQueryWrapper<FileInfo> wrapper = new LambdaQueryWrapper<>();
+            wrapper.eq(FileInfo::getFileMd5, fileMd5).eq(FileInfo::getStatus, FileStatusEnum.USING.getStatus());
+            FileInfo dbFile = fileInfoMapper.selectOne(wrapper);
+            //存在文件 不重复上传
+            if (dbFile!=null) {
+                if (dbFile.getFileSize() + userSpaceDto.getUseSpace() > userSpaceDto.getTotalSpace()) {
+                    throw new BusinessException(ResponseCodeEnum.CODE_904);
+                }
+                //将数据库中的文件直接复制
+                dbFile.setFileId(fileId).setUserId(userDto.getUserId());
+                dbFile.setCreateTime(curDate).setLastUpdateTime(curDate);
+                dbFile.setFileName(autoRename(fileName, userDto.getUserId(), filePid));
+                fileInfoMapper.insert(dbFile);
+
+                //更新用户空间redis+UserInfo
+                updateUserSpace(userDto.getUserId(), dbFile.getFileSize());
+
+                resultDto.setStatus(UploadStatusEnum.UPLOAD_SECONDS.getStatus());
+                return resultDto;
+            }
+        }
+
+
+
+        return resultDto;
+    }
+
+    private void updateUserSpace(String userId, Long fileSize) {
+        UserInfo userInfo = userInfoService.getById(userId);
+        if (userInfo.getUseSpace() + fileSize <= userInfo.getTotalSpace()) {
+            userInfo.setUseSpace(userInfo.getUseSpace() + fileSize);
+        }
+        userInfoService.updateById(userInfo);
+
+        UserSpaceDto userSpaceDto = redisComponent.getUserSpace(userId);
+        userSpaceDto.setUseSpace(userSpaceDto.getUseSpace() + fileSize);
+        redisComponent.saveUserSpaceUse(userId, userSpaceDto);
+    }
+
+    private String autoRename(String fileName, String userId, String filePid) {
+        LambdaQueryWrapper<FileInfo> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(FileInfo::getFileName, fileName).eq(FileInfo::getFilePid, filePid)
+                .eq(FileInfo::getUserId, userId).eq(FileInfo::getDelFlag, FileDelFlagEnum.USING.getFlag());
+        Integer count = fileInfoMapper.selectCount(wrapper);
+        //该目录下已经存在同名文件 进行重命名
+        if (count > 0) {
+            fileName = StringTools.rename(fileName);
+        }
+        return fileName;
+    }
+
 }

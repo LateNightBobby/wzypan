@@ -2,6 +2,7 @@ package com.wzypan.mapper;
 
 import com.wzypan.entity.po.FileInfo;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import org.apache.ibatis.annotations.Param;
 
 /**
  * <p>
@@ -13,4 +14,5 @@ import com.baomidou.mybatisplus.core.mapper.BaseMapper;
  */
 public interface FileInfoMapper extends BaseMapper<FileInfo> {
 
+    Long selectUseSpace(@Param("userId") String userId);
 }

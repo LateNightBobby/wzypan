@@ -1,5 +1,6 @@
 package com.wzypan.utils;
 
+import com.wzypan.entity.constants.Constants;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.lang3.RandomStringUtils;
 
@@ -31,5 +32,28 @@ public class StringTools {
         if (path.contains("../") || path.contains("..\\"))
             return false;
         return true;
+    }
+
+    public static String rename(String fileName) {
+        String fileNameReal = getFileNameNoSuffix(fileName);
+        String suffix = getFileSuffix(fileName);
+        return fileNameReal + getRandomNumber(Constants.LENGTH_5) + suffix;
+    }
+
+    public static String getFileNameNoSuffix(String fileName) {
+        Integer index = fileName.lastIndexOf(".");
+        if (index == -1) {
+            return fileName;
+        }
+        String realFileName = fileName.substring(0, index);
+        return realFileName;
+    }
+    public static String getFileSuffix(String fileName) {
+        Integer index = fileName.lastIndexOf(".");
+        if (index == -1) {
+            return "";
+        }
+        String suffix = fileName.substring(index);
+        return suffix;
     }
 }

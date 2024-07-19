@@ -26,5 +26,11 @@
     <sql id="Base_Column_List">
         file_id, user_id, file_md5, file_pid, file_size, file_name, file_cover, file_path, create_time, last_update_time, folder_type, file_category, file_type, status, recovery_time, del_flag
     </sql>
+    
+    <select id="selectUseSpace" resultType="java.lang.Long">
+        select IFNULL(sum(file_size), 0)
+        from file_info
+        where user_id = #{userId}
+    </select>
 
 </mapper>
