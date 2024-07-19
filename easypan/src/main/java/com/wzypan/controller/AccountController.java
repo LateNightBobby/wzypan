@@ -1,4 +1,4 @@
-package com.wzypan.controller.login;
+package com.wzypan.controller;
 
 
 import com.wzypan.annotation.GlobalInterceptor;
@@ -14,7 +14,6 @@ import com.wzypan.entity.po.UserInfo;
 import com.wzypan.exception.BusinessException;
 import com.wzypan.service.EmailCodeService;
 import com.wzypan.service.UserInfoService;
-import com.wzypan.utils.RedisComponent;
 import com.wzypan.utils.StringTools;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -27,7 +26,6 @@ import javax.annotation.Resource;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
 import java.util.HashMap;
 import java.util.Map;
 

@@ -160,6 +160,19 @@
       <artifactId>okhttp</artifactId>
       <version>${okhttp3.version}</version>
     </dependency>
+
+<!--    page分页器-->
+<!--    <dependency>-->
+<!--      <groupId>com.github.pagehelper</groupId>-->
+<!--      <artifactId>pagehelper-spring-boot-starter</artifactId>-->
+<!--      <version>1.4.3</version>-->
+<!--    </dependency>-->
+
+<!--    <dependency>-->
+<!--      <groupId>com.github.pagehelper</groupId>-->
+<!--      <artifactId>pagehelper</artifactId>-->
+<!--      <version>5.3.1</version>-->
+<!--    </dependency>-->
   </dependencies>
 
   <build>
