@@ -3,13 +3,10 @@ package com.wzypan.utils;
 import com.wzypan.entity.constants.Constants;
 import com.wzypan.entity.dto.SysSettingsDto;
 import com.wzypan.entity.dto.UserSpaceDto;
-import com.wzypan.exception.BusinessException;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.Resource;
-import java.io.ByteArrayInputStream;
-import java.io.ObjectInputStream;
 
 @Component("redisComponent")
 public class RedisComponent {
@@ -39,7 +36,7 @@ public class RedisComponent {
     }
 
     public void saveUserSpaceUse(String userId, UserSpaceDto userSpaceDto) {
-        redisUtils.setEx(Constants.REDIS_KEY_USER_SPACE_USE+userId, userSpaceDto, Long.valueOf(Constants.REDIS_KEY_EXPIRES_DAY));
+        redisUtils.setEx(Constants.REDIS_KEY_USER_SPACE_USE+userId, userSpaceDto, Long.valueOf(Constants.REDIS_KEY_EXPIRES_ONE_DAY));
 
     }
 
@@ -50,6 +47,29 @@ public class RedisComponent {
             saveUserSpaceUse(userId, userSpaceDto);
         }
         return userSpaceDto;
+    }
+
+    public void saveFileTempSize(String userId, String fileId, Long fileSize) {
+        Long curSize = getFileTempSizeFromRedis(Constants.REDIS_KEY_USER_FILE_TEMP_SIZE+userId+"_"+fileId);
+        redisUtils.setEx(Constants.REDIS_KEY_USER_FILE_TEMP_SIZE+userId+"_"+fileId,
+                fileSize+curSize,
+                Long.valueOf(Constants.REDIS_KEY_EXPIRES_ONE_HOUR));
+    }
+    public Long getFileTempSize(String userId, String fileId) {
+        Long curSize = getFileTempSizeFromRedis(Constants.REDIS_KEY_USER_FILE_TEMP_SIZE+userId+"_"+fileId);
+        return curSize;
+    }
+
+    private Long getFileTempSizeFromRedis(String key) {
+        Object sizeObj = redisUtils.get(key);
+        if (sizeObj==null) {
+            return  0L;
+        } else if (sizeObj instanceof Integer) {
+            return ((Integer) sizeObj).longValue();
+        } else if (sizeObj instanceof Long) {
+            return (Long) sizeObj;
+        }
+        return 0L;
     }
 
 }

@@ -80,22 +80,22 @@ public class FileInfo implements Serializable {
     /**
      * 0 文件 1 目录
      */
-    private Boolean folderType;
+    private Integer folderType;
 
     /**
      * 文件分类 1视频 2音频 3图片 4文档 5其他
      */
-    private Boolean fileCategory;
+    private Integer fileCategory;
 
     /**
      * 详细文件类型 1视频 2音频 3图片 4pdf 5doc 6excel 7txt 8code 9zip 10其他
      */
-    private Boolean fileType;
+    private Integer fileType;
 
     /**
      * 状态 0转码中 1转码失败 2转码成功
      */
-    private Boolean status;
+    private Integer status;
 
     /**
      * 进入回收站时间
@@ -105,7 +105,7 @@ public class FileInfo implements Serializable {
     /**
      * 标记删除 0删除 1回收站 2正常
      */
-    private Boolean delFlag;
+    private Integer delFlag;
 
 
 }
