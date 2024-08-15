@@ -15,4 +15,6 @@ import org.apache.ibatis.annotations.Param;
 public interface FileInfoMapper extends BaseMapper<FileInfo> {
 
     Long selectUseSpace(@Param("userId") String userId);
+
+    void updateWithOldStatus(@Param("fileInfo") FileInfo fileInfo, @Param("oldStatus") Integer oldStatus);
 }

@@ -33,4 +33,14 @@
         where user_id = #{userId}
     </select>
 
+    <update id="updateWithOldStatus" parameterType="com.wzypan.entity.po.FileInfo">
+        update file_info
+        set file_md5 = #{fileInfo.fileMd5}, file_size = #{fileInfo.fileSize},
+            file_cover = #{fileInfo.fileCover}, file_status = #{fileInfo.fileSize},
+            status = #{fileInfo.status}, last_update_time = #{fileInfo.lastUpdateTime}
+        where
+            file_id = #{fileInfo.fileId} and user_id = #{fileInfo.userId}
+            and status = #{oldStatus}
+    </update>
+
 </mapper>

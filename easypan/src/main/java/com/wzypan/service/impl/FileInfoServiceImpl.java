@@ -23,15 +23,19 @@ import com.wzypan.utils.StringTools;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.time.DateFormatUtils;
+import org.springframework.context.annotation.Lazy;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.multipart.MultipartFile;
 
 import javax.annotation.Resource;
 import java.io.File;
 import java.io.IOException;
+import java.io.RandomAccessFile;
 import java.util.Date;
-import java.util.List;
 
 /**
  * <p>
@@ -57,6 +61,11 @@ public class FileInfoServiceImpl extends ServiceImpl<FileInfoMapper, FileInfo> i
     @Resource
     private AppConfig appConfig;
 
+    @Resource
+    @Lazy
+    private FileInfoServiceImpl fileInfoService;
+
+
     @Override
     public PageBean pageDataList(PageQuery pageQuery, SessionWebUserDto userDto, FileCategoryEnum categoryEnum, String filePid, String fileNameFuzzy) {
         LambdaQueryWrapper<FileInfo> wrapper = new LambdaQueryWrapper<>();
@@ -74,6 +83,7 @@ public class FileInfoServiceImpl extends ServiceImpl<FileInfoMapper, FileInfo> i
     }
 
     @Override
+    //尝试多线程？
     @Transactional(rollbackFor = Exception.class)
     public UploadResultDto uploadFile(SessionWebUserDto userDto, String fileId, MultipartFile file,
                                       String fileName, String filePid, String fileMd5, Integer chunkIndex, Integer chunks) {
@@ -137,8 +147,9 @@ public class FileInfoServiceImpl extends ServiceImpl<FileInfoMapper, FileInfo> i
                 return resultDto;
             }
 
+            redisComponent.saveFileTempSize(userDto.getUserId(), fileId, file.getSize());
             //上传完毕所有分片 更新数据库 合并
-            String month = DateFormatUtils.format(new Date(), DateTimePatternEnum.YYYY_MM.getPattern());
+            String month = DateFormatUtils.format(new Date(), DateTimePatternEnum.YYYYMM.getPattern());
             String fileSuffix = StringTools.getFileSuffix(fileName);
             //完整用户文件名
             String realFileName = currentUserFolderName + fileSuffix;
@@ -149,6 +160,7 @@ public class FileInfoServiceImpl extends ServiceImpl<FileInfoMapper, FileInfo> i
             FileInfo fileInfo = new FileInfo().setFileId(fileId).setUserId(userDto.getUserId());
             fileInfo.setFileMd5(fileMd5).setFilePid(filePid).setFileName(fileName);
             fileInfo.setFilePath(month+"/"+realFileName);
+//            fileInfo.setFileSize() 转码合并后更新文件大小
             fileInfo.setCreateTime(curDate).setLastUpdateTime(curDate);
             fileInfo.setFileCategory(fileType.getCategory().getCode()).setFileType(fileType.getType());
             fileInfo.setStatus(FileStatusEnum.TRANSFER.getStatus()).setDelFlag(FileDelFlagEnum.USING.getFlag());
@@ -159,6 +171,14 @@ public class FileInfoServiceImpl extends ServiceImpl<FileInfoMapper, FileInfo> i
             updateUserSpace(userDto.getUserId(), totalSize);
 
             resultDto.setStatus(UploadStatusEnum.UPLOAD_FINISH.getStatus());
+
+            //异步合并
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    fileInfoService.transferFile(fileInfo.getFileId(), userDto);
+                }
+            });
             return resultDto;
 
         } catch (BusinessException e) {
@@ -204,6 +224,107 @@ public class FileInfoServiceImpl extends ServiceImpl<FileInfoMapper, FileInfo> i
             fileName = StringTools.rename(fileName);
         }
         return fileName;
+    }
+
+    @Async
+    public void transferFile(String fileId, SessionWebUserDto webUserDto) {
+        Boolean transferSuccess = true;
+        String targetFilePath = null;
+        String cover = null;
+        FileTypeEnum fileTypeEnum = null;
+
+        FileInfo fileInfo = fileInfoMapper.selectById(fileId);
+        try {
+            if (fileInfo==null || !fileInfo.getStatus().equals(FileStatusEnum.TRANSFER.getStatus())) {
+                return;
+            }
+        //临时目录
+        String tempFolderName = appConfig.getProjectFolder() + Constants.FILE_FOLDER_FILE + Constants.FILE_FOLDER_TEMP_NAME;
+        String currentUserFolderName = webUserDto.getUserId()+"_"+fileId;
+        File tempFileFolder = new File(tempFolderName + currentUserFolderName);
+
+        String fileNameSuffix = StringTools.getFileSuffix(fileInfo.getFileName());
+        String month = DateFormatUtils.format(fileInfo.getCreateTime(), DateTimePatternEnum.YYYYMM.getPattern());
+
+        //目标目录
+        String targetFolderName = appConfig.getProjectFolder() + Constants.FILE_FOLDER_FILE;
+        File targetFolder = new File(targetFolderName+"/"+month);
+        if (!targetFolder.exists()) {
+            targetFolder.mkdirs();
+        }
+        String realFileName = currentUserFolderName + fileNameSuffix;
+        targetFilePath = targetFolder.getPath() + "/" + realFileName;
+
+        //合并文件
+        union(tempFileFolder.getPath(), targetFilePath, fileInfo.getFileName(), true);
+
+        //视频文件切片
+
+
+        } catch (Exception e) {
+            log.error("文件{}转码失败", fileInfo.getFilePath());
+            transferSuccess = false;
+        } finally {
+            Integer oldStatus = null;
+            if (fileInfo != null) {
+                oldStatus = fileInfo.getStatus();
+                fileInfo.setFileSize(new File(targetFilePath).length()).setFileCover(cover);
+                fileInfo.setStatus(transferSuccess ? FileStatusEnum.USING.getStatus() : FileStatusEnum.TRANSFER_FAIL.getStatus());
+                fileInfo.setLastUpdateTime(new Date());
+                //乐观锁
+                fileInfoMapper.updateWithOldStatus(fileInfo, oldStatus);
+//            if (fileInfoMapper.selectById(fileInfo.getFileId()).getStatus().equals(fileInfo.getStatus()))
+//                fileInfoMapper.updateById(fileInfo);
+            }
+        }
+    }
+
+    private void union(String dirPath, String toFilePath, String fileName, Boolean delSource) {
+        File dir = new File(dirPath);
+        if (!dir.exists()) {
+            throw new BusinessException("not exist dir");
+        }
+        File[] fileList = dir.listFiles();
+        File targetFile = new File(toFilePath);
+        RandomAccessFile writeFile = null;
+        try {
+            writeFile = new RandomAccessFile(targetFile, "rw");
+            byte[] b = new byte[1024 * 10];
+            for (int i = 0; i < fileList.length; ++i) {
+                int len = -1;
+                File chunkFile = new File(dirPath + "/" + fileList[i].getName());
+                RandomAccessFile readFile = null;
+                try {
+                    readFile = new RandomAccessFile(chunkFile, "r");
+                    while ((len= readFile.read(b))!= -1) {
+                        writeFile.write(b, 0, len);
+                    }
+                } catch (Exception e) {
+                    log.error("合并失败", e);
+                    throw new BusinessException("合并文件"+fileName+"失败");
+                } finally {
+                    readFile.close();
+                }
+            }
+        } catch (Exception e) {
+            log.error("合并失败", e);
+            throw new BusinessException("合并文件"+fileName+"出错");
+        } finally {
+            if (writeFile!=null) {
+                try {
+                    writeFile.close();
+                } catch (IOException e){
+                    e.printStackTrace();
+                }
+            }
+            if (delSource && dir.exists()) {
+                try {
+                    FileUtils.deleteDirectory(dir);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
     }
 
 }
