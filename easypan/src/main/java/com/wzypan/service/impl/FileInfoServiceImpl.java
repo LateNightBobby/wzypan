@@ -18,7 +18,9 @@ import com.wzypan.mapper.FileInfoMapper;
 import com.wzypan.service.FileInfoService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.wzypan.service.UserInfoService;
+import com.wzypan.utils.ProcessUtils;
 import com.wzypan.utils.RedisComponent;
+import com.wzypan.utils.ScaleFilter;
 import com.wzypan.utils.StringTools;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FileUtils;
@@ -226,7 +228,7 @@ public class FileInfoServiceImpl extends ServiceImpl<FileInfoMapper, FileInfo> i
         return fileName;
     }
 
-    @Async
+    @Async("applicationTaskExecutor")
     public void transferFile(String fileId, SessionWebUserDto webUserDto) {
         Boolean transferSuccess = true;
         String targetFilePath = null;
@@ -256,10 +258,27 @@ public class FileInfoServiceImpl extends ServiceImpl<FileInfoMapper, FileInfo> i
         targetFilePath = targetFolder.getPath() + "/" + realFileName;
 
         //合并文件
-        union(tempFileFolder.getPath(), targetFilePath, fileInfo.getFileName(), true);
+        union(tempFileFolder.getPath(), targetFilePath, fileInfo.getFileName(), false);
 
         //视频文件切片
-
+        fileTypeEnum = FileTypeEnum.getFileTypeBySuffix(fileNameSuffix);
+        if (FileTypeEnum.VIDEO==fileTypeEnum) {
+            cutFile4Video(fileId, targetFilePath);
+//            生成缩略图
+            cover = month + "/" + currentUserFolderName + Constants.IMAGE_PNG_SUFFIX;
+            String coverPath = targetFolderName + "/" + cover;
+            ScaleFilter.createCover4Video(new File(targetFilePath), 150, new File(coverPath));
+        } else if (FileTypeEnum.IMAGE==fileTypeEnum) {
+            //在同一目录下最后的.前加上_的即为缩略图
+            cover = month + "/" + realFileName.replace(".", "_.");
+            String coverPath = targetFolderName + "/" + cover;
+            Boolean created = ScaleFilter.createThumbnailWidthFFmpeg(new File(targetFilePath), 150,
+                    new File(coverPath), false);
+            if (!created) {
+                //图片太小无需压缩，复制一份到缩略图
+                FileUtils.copyFile(new File(targetFilePath), new File(coverPath));
+            }
+        }
 
         } catch (Exception e) {
             log.error("文件{}转码失败", fileInfo.getFilePath());
@@ -279,7 +298,7 @@ public class FileInfoServiceImpl extends ServiceImpl<FileInfoMapper, FileInfo> i
         }
     }
 
-    private void union(String dirPath, String toFilePath, String fileName, Boolean delSource) {
+    private static void union(String dirPath, String toFilePath, String fileName, Boolean delSource) {
         File dir = new File(dirPath);
         if (!dir.exists()) {
             throw new BusinessException("not exist dir");
@@ -325,6 +344,25 @@ public class FileInfoServiceImpl extends ServiceImpl<FileInfoMapper, FileInfo> i
                 }
             }
         }
+    }
+
+    private void cutFile4Video(String fileId, String videoFilePath) {
+        //创建同名切片目录
+        File tsFolder = new File(videoFilePath.substring(0, videoFilePath.lastIndexOf(".")));
+        if (!tsFolder.exists()) {
+            tsFolder.mkdirs();
+        }
+        String CMD_TRANSFER_2TS = "ffmpeg -y -i %s -vcodec copy -bsf:v h264_mp4toannexb %s";
+        String CMD_CUT_TS = "ffmpeg -i %s -c copy -map 0 -f segment -segment_list %s -segment_time 30 %s/%s_%%04d.ts";
+        String tsPath = tsFolder+"/"+Constants.TS_NAME;
+        //执行ffmpeg 原视频分片生成index.ts文件
+        String cmd = String.format(CMD_TRANSFER_2TS, videoFilePath, tsPath);
+        ProcessUtils.executeCommand(cmd, false);
+        //ts分片生成m3u8
+        cmd = String.format(CMD_CUT_TS, tsPath, tsFolder.getPath()+"/"+Constants.M3U8_NAME, tsFolder.getPath(), fileId);
+        ProcessUtils.executeCommand(cmd, false);
+        //删除index.ts
+        new File(tsPath).delete();
     }
 
 }
