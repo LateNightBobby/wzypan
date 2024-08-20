@@ -10,6 +10,7 @@ import com.baomidou.mybatisplus.extension.service.IService;
 import org.springframework.web.multipart.MultipartFile;
 
 import javax.servlet.http.HttpServletResponse;
+import java.util.List;
 
 /**
  * <p>
@@ -28,4 +29,11 @@ public interface FileInfoService extends IService<FileInfo> {
     void getThumbnail(HttpServletResponse response, String imageFolder, String imageName);
 
     void getFile(HttpServletResponse response, String fileId, String userId);
+
+    FileInfo newFolder(String filePid, String folderName, String userId);
+
+    List getFolderInfo(String userId, String path);
+
+    FileInfo renameFile(String userId, String fileId, String fileName);
+
 }

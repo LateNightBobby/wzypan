@@ -1,15 +1,18 @@
 package com.wzypan.controller;
 
 
+import com.baomidou.mybatisplus.extension.api.R;
 import com.wzypan.annotation.GlobalInterceptor;
 import com.wzypan.annotation.VerifyParam;
 import com.wzypan.entity.constants.Constants;
 import com.wzypan.entity.dto.SessionWebUserDto;
 import com.wzypan.entity.dto.UploadResultDto;
+import com.wzypan.entity.enums.VerifyRegexEnum;
 import com.wzypan.entity.page.PageBean;
 import com.wzypan.entity.page.PageQuery;
 import com.wzypan.entity.Result;
 import com.wzypan.entity.enums.FileCategoryEnum;
+import com.wzypan.entity.po.FileInfo;
 import com.wzypan.service.FileInfoService;
 import com.wzypan.utils.StringTools;
 import org.springframework.web.bind.annotation.*;
@@ -20,6 +23,7 @@ import javax.annotation.Resource;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 import java.util.ConcurrentModificationException;
+import java.util.List;
 
 /**
  * <p>
@@ -85,6 +89,33 @@ public class FileInfoController {
     public void getVideo(@PathVariable("fileId")String fileId, HttpServletResponse response, HttpSession session) {
         SessionWebUserDto webUserDto = (SessionWebUserDto) session.getAttribute(Constants.SESSION_KEY);
         fileInfoService.getFile(response, fileId, webUserDto.getUserId());
+    }
+
+    @PostMapping("/newFoloder")
+    @GlobalInterceptor(checkParams = true, checkLogin = true)
+    public Result newFolder(@VerifyParam(required = true) String filePid,
+                            @VerifyParam(required = true) String fileName,
+                            HttpSession session) {
+        SessionWebUserDto webUserDto = (SessionWebUserDto) session.getAttribute(Constants.SESSION_KEY);
+        FileInfo folder = fileInfoService.newFolder(filePid, fileName, webUserDto.getUserId());
+        return Result.success(folder);
+    }
+    @PostMapping("/getFolderInfo")
+    @GlobalInterceptor(checkParams = true, checkLogin = true)
+    public Result getFolderInfo(@VerifyParam(required = true) String path, HttpSession session) {
+        SessionWebUserDto webUserDto = (SessionWebUserDto) session.getAttribute(Constants.SESSION_KEY);
+        List folderList = fileInfoService.getFolderInfo(webUserDto.getUserId(), path);
+        return Result.success(folderList);
+    }
+
+    @PostMapping("/rename")
+    @GlobalInterceptor(checkLogin = true, checkParams = true)
+    public Result rename(@VerifyParam(required = true) String fileId,
+                         @VerifyParam(required = true) String fileName,
+                         HttpSession session) {
+        SessionWebUserDto webUserDto = (SessionWebUserDto) session.getAttribute(Constants.SESSION_KEY);
+        FileInfo fileInfo = fileInfoService.renameFile(webUserDto.getUserId(), fileId, fileName);
+        return Result.success();
     }
 }
 

@@ -1,6 +1,7 @@
 package com.wzypan.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.wzypan.entity.config.AppConfig;
@@ -38,7 +39,10 @@ import javax.servlet.http.HttpServletResponse;
 import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
+import java.util.Arrays;
 import java.util.Date;
+import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * <p>
@@ -222,17 +226,13 @@ public class FileInfoServiceImpl extends ServiceImpl<FileInfoMapper, FileInfo> i
         if (fileId.endsWith(".ts")) {
             String[] tsArray = fileId.split("_");
             String realFileId = tsArray[0];
-            LambdaQueryWrapper<FileInfo> wrapper = new LambdaQueryWrapper<>();
-            wrapper.eq(FileInfo::getFileId, realFileId).eq(FileInfo::getUserId, userId);
-            FileInfo fileInfo = fileInfoMapper.selectOne(wrapper);
+            FileInfo fileInfo = fileInfoMapper.selectByUserIdAndFileId(userId, realFileId);
             if (fileInfo == null) return;
             filePath = appConfig.getProjectFolder()+Constants.FILE_FOLDER_FILE+
                     StringTools.getFileNameNoSuffix(fileInfo.getFilePath())+"/"+fileId;
         }
         else {
-            LambdaQueryWrapper<FileInfo> wrapper = new LambdaQueryWrapper<>();
-            wrapper.eq(FileInfo::getFileId, fileId).eq(FileInfo::getUserId, userId);
-            FileInfo fileInfo = fileInfoMapper.selectOne(wrapper);
+            FileInfo fileInfo = fileInfoMapper.selectByUserIdAndFileId(userId, fileId);
 
             if (fileInfo == null) {
                 return;
@@ -250,6 +250,61 @@ public class FileInfoServiceImpl extends ServiceImpl<FileInfoMapper, FileInfo> i
             return;
         }
         com.wzypan.utils.FileUtils.readFile(response, filePath);
+    }
+
+    @Override
+    public FileInfo newFolder(String filePid, String folderName, String userId) {
+        checkFileNameOk(folderName, FileFolderTypeEnum.FOLDER.getType(), filePid, userId);
+        Date curDate = new Date();
+        FileInfo folderFileInfo = new FileInfo();
+        folderFileInfo.setFolderType(FileFolderTypeEnum.FOLDER.getType()).setFilePid(filePid)
+                .setUserId(userId).setFileName(folderName).setFileId(StringTools.getRandomNumber(10));
+        folderFileInfo.setCreateTime(curDate).setLastUpdateTime(curDate);
+        folderFileInfo.setStatus(FileStatusEnum.USING.getStatus()).setDelFlag(FileDelFlagEnum.USING.getFlag());
+        fileInfoMapper.insert(folderFileInfo);
+        return folderFileInfo;
+    }
+
+    @Override
+    public List getFolderInfo(String userId, String path) {
+        String[] pathArray = path.split("/");
+        LambdaQueryWrapper<FileInfo> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(FileInfo::getUserId, userId).eq(FileInfo::getFolderType, FileFolderTypeEnum.FOLDER.getType())
+                .in(FileInfo::getFileId, Arrays.asList(pathArray));
+        String orderSql = String.join(",", pathArray);
+        wrapper.last("ORDER BY FIELD(file_id, " + orderSql + ")");
+        List<FileInfo> folderList = fileInfoMapper.selectList(wrapper);
+        return folderList;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public FileInfo renameFile(String userId, String fileId, String fileName) {
+        //获取原本文件
+        FileInfo fileInfo = fileInfoMapper.selectByUserIdAndFileId(userId, fileId);
+        if (fileInfo==null) {
+            throw new BusinessException("no such file");
+        }
+
+        String filePid = fileInfo.getFilePid();
+        checkFileNameOk(fileName, fileInfo.getFolderType(), filePid, userId);
+        if (FileFolderTypeEnum.FILE.getType().equals(fileInfo.getFolderType())) {
+            fileName = fileName + "." + StringTools.getFileSuffix(fileInfo.getFileName());
+        }
+
+        Date curDate = new Date();
+        fileInfo.setFileName(fileName).setLastUpdateTime(curDate);
+        fileInfoMapper.updateById(fileInfo);
+
+        //再次查一遍，并发时若重复回滚
+        LambdaQueryWrapper<FileInfo> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(FileInfo::getFileName, fileName).eq(FileInfo::getFilePid, filePid).eq(FileInfo::getUserId, userId);
+        Integer count = fileInfoMapper.selectCount(wrapper);
+        if (count > 1) {
+            throw new BusinessException("文件名" + fileName + "已存在");
+        }
+
+        return fileInfo;
     }
 
     private void updateUserSpace(String userId, Long fileSize) {
@@ -414,4 +469,13 @@ public class FileInfoServiceImpl extends ServiceImpl<FileInfoMapper, FileInfo> i
         new File(tsPath).delete();
     }
 
+    private void checkFileNameOk(String fileName, Integer folderType, String filePid, String userId) {
+        LambdaQueryWrapper<FileInfo> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(FileInfo::getFileName, fileName).eq(FileInfo::getFolderType, folderType)
+                .eq(FileInfo::getFilePid, filePid).eq(FileInfo::getUserId, userId);
+        Integer count = fileInfoMapper.selectCount(wrapper);
+        if (count > 0) {
+            throw new BusinessException("该目录下存在同名文件，请重新命名");
+        }
+    }
 }

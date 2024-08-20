@@ -43,4 +43,9 @@
             and status = #{oldStatus}
     </update>
 
+    <select id="selectByUserIdAndFileId" resultType="com.wzypan.entity.po.FileInfo">
+        select <include refid="Base_Column_List"/>
+        from file_info
+        where user_id = #{userId} and file_id = #{fileId}
+    </select>
 </mapper>
