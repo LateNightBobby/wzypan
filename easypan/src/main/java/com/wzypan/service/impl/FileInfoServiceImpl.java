@@ -34,6 +34,7 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 import org.springframework.web.multipart.MultipartFile;
 
 import javax.annotation.Resource;
+import javax.servlet.http.HttpServletResponse;
 import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
@@ -203,6 +204,54 @@ public class FileInfoServiceImpl extends ServiceImpl<FileInfoMapper, FileInfo> i
         return resultDto;
     }
 
+    @Override
+    public void getThumbnail(HttpServletResponse response, String imageFolder, String imageName) {
+        String imageSuffix = StringTools.getFileSuffix(imageName);
+        String filePath = appConfig.getProjectFolder() + Constants.FILE_FOLDER_FILE + imageFolder + "/" + imageName;
+        imageSuffix = imageSuffix.replace(".", "");
+        String contentType = "image/"+imageSuffix;
+        response.setContentType(contentType);
+        response.setHeader("Cache-Control", "max-age=2592000");
+        com.wzypan.utils.FileUtils.readFile(response, filePath);
+    }
+
+    @Override
+    public void getFile(HttpServletResponse response, String fileId, String userId) {
+
+        String filePath = null;
+        if (fileId.endsWith(".ts")) {
+            String[] tsArray = fileId.split("_");
+            String realFileId = tsArray[0];
+            LambdaQueryWrapper<FileInfo> wrapper = new LambdaQueryWrapper<>();
+            wrapper.eq(FileInfo::getFileId, realFileId).eq(FileInfo::getUserId, userId);
+            FileInfo fileInfo = fileInfoMapper.selectOne(wrapper);
+            if (fileInfo == null) return;
+            filePath = appConfig.getProjectFolder()+Constants.FILE_FOLDER_FILE+
+                    StringTools.getFileNameNoSuffix(fileInfo.getFilePath())+"/"+fileId;
+        }
+        else {
+            LambdaQueryWrapper<FileInfo> wrapper = new LambdaQueryWrapper<>();
+            wrapper.eq(FileInfo::getFileId, fileId).eq(FileInfo::getUserId, userId);
+            FileInfo fileInfo = fileInfoMapper.selectOne(wrapper);
+
+            if (fileInfo == null) {
+                return;
+            }
+            if (FileCategoryEnum.VIDEO.getCode().equals(fileInfo.getFileCategory())) {
+                String fileNameNoSuffix = StringTools.getFileNameNoSuffix(fileInfo.getFilePath());
+                filePath = appConfig.getProjectFolder() + Constants.FILE_FOLDER_FILE +
+                        fileNameNoSuffix + "/" + Constants.M3U8_NAME;
+            } else {
+                filePath = appConfig.getProjectFolder()+Constants.FILE_FOLDER_FILE+fileInfo.getFilePath();
+            }
+        }
+        File file = new File(filePath);
+        if (!file.exists()) {
+            return;
+        }
+        com.wzypan.utils.FileUtils.readFile(response, filePath);
+    }
+
     private void updateUserSpace(String userId, Long fileSize) {
         UserInfo userInfo = userInfoService.getById(userId);
         if (userInfo.getUseSpace() + fileSize <= userInfo.getTotalSpace()) {
@@ -353,7 +402,7 @@ public class FileInfoServiceImpl extends ServiceImpl<FileInfoMapper, FileInfo> i
             tsFolder.mkdirs();
         }
         String CMD_TRANSFER_2TS = "ffmpeg -y -i %s -vcodec copy -bsf:v h264_mp4toannexb %s";
-        String CMD_CUT_TS = "ffmpeg -i %s -c copy -map 0 -f segment -segment_list %s -segment_time 30 %s/%s_%%04d.ts";
+        String CMD_CUT_TS = "ffmpeg -i %s -c copy -map 0 -f segment -segment_list %s -segment_time 15 %s/%s_%%04d.ts";
         String tsPath = tsFolder+"/"+Constants.TS_NAME;
         //执行ffmpeg 原视频分片生成index.ts文件
         String cmd = String.format(CMD_TRANSFER_2TS, videoFilePath, tsPath);

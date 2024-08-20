@@ -11,14 +11,13 @@ import com.wzypan.entity.page.PageQuery;
 import com.wzypan.entity.Result;
 import com.wzypan.entity.enums.FileCategoryEnum;
 import com.wzypan.service.FileInfoService;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
+import com.wzypan.utils.StringTools;
+import org.springframework.web.bind.annotation.*;
 
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import javax.annotation.Resource;
+import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 import java.util.ConcurrentModificationException;
 
@@ -60,6 +59,32 @@ public class FileInfoController {
         SessionWebUserDto userDto = (SessionWebUserDto) session.getAttribute(Constants.SESSION_KEY);
         UploadResultDto uploadResultDto = fileInfoService.uploadFile(userDto, fileId, file, fileName, filePid, fileMd5, chunkIndex ,chunks);
         return Result.success(uploadResultDto);
+    }
+
+    @RequestMapping("/getImage/{ImageFolder}/{ImageName}")
+    @GlobalInterceptor(checkLogin = true, checkParams = true)
+    public void getImage(@PathVariable("ImageFolder") String imageFolder,
+                           @PathVariable("ImageName") String imageName,
+                           HttpServletResponse response) {
+        if (StringTools.isEmpty(imageFolder) || StringTools.isEmpty(imageName) ||
+                !StringTools.pathIsOk(imageFolder) || !StringTools.pathIsOk(imageName)) {
+            return;
+        }
+        fileInfoService.getThumbnail(response, imageFolder, imageName);
+    }
+
+    @RequestMapping("/getFile/{fileId}")
+    @GlobalInterceptor(checkLogin = true, checkParams = true)
+    public void getFile(@PathVariable("fileId")String fileId, HttpServletResponse response, HttpSession session) {
+        SessionWebUserDto webUserDto = (SessionWebUserDto) session.getAttribute(Constants.SESSION_KEY);
+        fileInfoService.getFile(response, fileId, webUserDto.getUserId());
+    }
+
+    @RequestMapping("/ts/getVideoInfo/{fileId}")
+    @GlobalInterceptor(checkLogin = true)
+    public void getVideo(@PathVariable("fileId")String fileId, HttpServletResponse response, HttpSession session) {
+        SessionWebUserDto webUserDto = (SessionWebUserDto) session.getAttribute(Constants.SESSION_KEY);
+        fileInfoService.getFile(response, fileId, webUserDto.getUserId());
     }
 }
 
