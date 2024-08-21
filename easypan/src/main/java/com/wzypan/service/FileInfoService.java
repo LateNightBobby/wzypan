@@ -36,4 +36,5 @@ public interface FileInfoService extends IService<FileInfo> {
 
     FileInfo renameFile(String userId, String fileId, String fileName);
 
+    List loadAllFolder(String userId, String filePid, String curFileIds);
 }

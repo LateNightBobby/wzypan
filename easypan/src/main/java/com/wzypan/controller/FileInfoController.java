@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.extension.api.R;
 import com.wzypan.annotation.GlobalInterceptor;
 import com.wzypan.annotation.VerifyParam;
 import com.wzypan.entity.constants.Constants;
+import com.wzypan.entity.dto.FileInfoDto;
 import com.wzypan.entity.dto.SessionWebUserDto;
 import com.wzypan.entity.dto.UploadResultDto;
 import com.wzypan.entity.enums.VerifyRegexEnum;
@@ -14,6 +15,7 @@ import com.wzypan.entity.Result;
 import com.wzypan.entity.enums.FileCategoryEnum;
 import com.wzypan.entity.po.FileInfo;
 import com.wzypan.service.FileInfoService;
+import com.wzypan.utils.CopyTools;
 import com.wzypan.utils.StringTools;
 import org.springframework.web.bind.annotation.*;
 
@@ -98,14 +100,14 @@ public class FileInfoController {
                             HttpSession session) {
         SessionWebUserDto webUserDto = (SessionWebUserDto) session.getAttribute(Constants.SESSION_KEY);
         FileInfo folder = fileInfoService.newFolder(filePid, fileName, webUserDto.getUserId());
-        return Result.success(folder);
+        return Result.success(CopyTools.copy(folder, FileInfoDto.class));
     }
     @PostMapping("/getFolderInfo")
     @GlobalInterceptor(checkParams = true, checkLogin = true)
     public Result getFolderInfo(@VerifyParam(required = true) String path, HttpSession session) {
         SessionWebUserDto webUserDto = (SessionWebUserDto) session.getAttribute(Constants.SESSION_KEY);
         List folderList = fileInfoService.getFolderInfo(webUserDto.getUserId(), path);
-        return Result.success(folderList);
+        return Result.success(CopyTools.copyList(folderList, FileInfoDto.class));
     }
 
     @PostMapping("/rename")
@@ -115,7 +117,16 @@ public class FileInfoController {
                          HttpSession session) {
         SessionWebUserDto webUserDto = (SessionWebUserDto) session.getAttribute(Constants.SESSION_KEY);
         FileInfo fileInfo = fileInfoService.renameFile(webUserDto.getUserId(), fileId, fileName);
-        return Result.success();
+        return Result.success(CopyTools.copy(fileInfo, FileInfoDto.class));
+    }
+
+    @PostMapping("/loadAllFolder")
+    @GlobalInterceptor(checkLogin = true, checkParams = true)
+    public Result loadAllFolder(@VerifyParam(required = true) String filePid,
+                                String currentFileIds, HttpSession session) {
+        SessionWebUserDto webUserDto = (SessionWebUserDto) session.getAttribute(Constants.SESSION_KEY);
+        List folderList = fileInfoService.loadAllFolder(webUserDto.getUserId(), filePid, currentFileIds);
+        return Result.success(CopyTools.copyList(folderList, FileInfoDto.class));
     }
 }
 

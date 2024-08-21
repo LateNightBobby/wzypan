@@ -6,6 +6,7 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.wzypan.entity.config.AppConfig;
 import com.wzypan.entity.constants.Constants;
+import com.wzypan.entity.dto.FileInfoDto;
 import com.wzypan.entity.dto.SessionWebUserDto;
 import com.wzypan.entity.dto.UploadResultDto;
 import com.wzypan.entity.dto.UserSpaceDto;
@@ -19,10 +20,7 @@ import com.wzypan.mapper.FileInfoMapper;
 import com.wzypan.service.FileInfoService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.wzypan.service.UserInfoService;
-import com.wzypan.utils.ProcessUtils;
-import com.wzypan.utils.RedisComponent;
-import com.wzypan.utils.ScaleFilter;
-import com.wzypan.utils.StringTools;
+import com.wzypan.utils.*;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.time.DateFormatUtils;
@@ -289,7 +287,7 @@ public class FileInfoServiceImpl extends ServiceImpl<FileInfoMapper, FileInfo> i
         String filePid = fileInfo.getFilePid();
         checkFileNameOk(fileName, fileInfo.getFolderType(), filePid, userId);
         if (FileFolderTypeEnum.FILE.getType().equals(fileInfo.getFolderType())) {
-            fileName = fileName + "." + StringTools.getFileSuffix(fileInfo.getFileName());
+            fileName = fileName + StringTools.getFileSuffix(fileInfo.getFileName());
         }
 
         Date curDate = new Date();
@@ -305,6 +303,20 @@ public class FileInfoServiceImpl extends ServiceImpl<FileInfoMapper, FileInfo> i
         }
 
         return fileInfo;
+    }
+
+    @Override
+    public List loadAllFolder(String userId, String filePid, String curFileIds) {
+        //curFileIds要移动的文件列表
+        LambdaQueryWrapper<FileInfo> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(FileInfo::getUserId, userId).eq(FileInfo::getFilePid, filePid)
+                .eq(FileInfo::getFolderType, FileFolderTypeEnum.FOLDER.getType())
+                .eq(FileInfo::getDelFlag, FileDelFlagEnum.USING.getFlag());
+        if (curFileIds!=null&&!curFileIds.isBlank()) {
+            wrapper.notIn(FileInfo::getFileId, Arrays.asList(curFileIds.split(",")));
+        }
+        wrapper.orderByDesc(FileInfo::getCreateTime);
+        return fileInfoMapper.selectList(wrapper);
     }
 
     private void updateUserSpace(String userId, Long fileSize) {
