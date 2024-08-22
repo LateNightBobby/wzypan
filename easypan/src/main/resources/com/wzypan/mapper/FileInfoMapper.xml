@@ -48,4 +48,13 @@
         from file_info
         where user_id = #{userId} and file_id = #{fileId}
     </select>
+
+<!--    <update id="updateBatchIds" parameterType="java.util.List">-->
+<!--        update file_info-->
+<!--        set -->
+<!--        where file_id in-->
+<!--        <foreach collection="fileInfoList" item="item" index="index" open="(" separator="," close=")">-->
+<!--            #{item.fileId}-->
+<!--        </foreach>>-->
+<!--    </update>-->
 </mapper>

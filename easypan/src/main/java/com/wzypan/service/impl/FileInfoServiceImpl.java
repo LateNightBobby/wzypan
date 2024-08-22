@@ -40,6 +40,7 @@ import java.io.RandomAccessFile;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -307,7 +308,7 @@ public class FileInfoServiceImpl extends ServiceImpl<FileInfoMapper, FileInfo> i
 
     @Override
     public List loadAllFolder(String userId, String filePid, String curFileIds) {
-        //curFileIds要移动的文件列表
+        //curFileIds要移动的文件夹列表
         LambdaQueryWrapper<FileInfo> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(FileInfo::getUserId, userId).eq(FileInfo::getFilePid, filePid)
                 .eq(FileInfo::getFolderType, FileFolderTypeEnum.FOLDER.getType())
@@ -317,6 +318,51 @@ public class FileInfoServiceImpl extends ServiceImpl<FileInfoMapper, FileInfo> i
         }
         wrapper.orderByDesc(FileInfo::getCreateTime);
         return fileInfoMapper.selectList(wrapper);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public List changeFileFolder(String userId, String fileIds, String filePid) {
+        String[] fileIdArray = fileIds.split(",");
+        for (String s : fileIdArray) {
+            if (s.equals(filePid)) {
+                throw new BusinessException(ResponseCodeEnum.CODE_600);
+            }
+        }
+        //检查父目录是否可用
+        if (!filePid.equals(Constants.ROOT_DIR_ID)) {
+            FileInfo parentFolderInfo = fileInfoMapper.selectByUserIdAndFileId(userId, filePid);
+            if (parentFolderInfo==null || !FileDelFlagEnum.USING.getFlag().equals(parentFolderInfo.getDelFlag())) {
+                //父文件夹为空或不可用
+                throw new BusinessException(ResponseCodeEnum.CODE_600);
+            }
+        }
+
+        //读取父目录下文件，使用文件名作为key
+        LambdaQueryWrapper<FileInfo> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(FileInfo::getFilePid, filePid).eq(FileInfo::getUserId, userId);
+        List<FileInfo> fileList = fileInfoMapper.selectList(wrapper);
+        Map<String, FileInfo> fileNameMap = fileList.stream()
+                .collect(Collectors.toMap(FileInfo::getFileName, fileInfo -> fileInfo,
+                        (existing, replacement)->replacement));
+
+        //选出所有要修改目录的文件
+        wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(FileInfo::getUserId, userId).in(FileInfo::getFileId, Arrays.asList(fileIdArray));
+        List<FileInfo> selectedFileList = fileInfoMapper.selectList(wrapper);
+
+        Date curDate = new Date();
+        //查询文件名是否重复
+        for (FileInfo selectedFile : selectedFileList) {
+            FileInfo parDirFile = fileNameMap.get(selectedFile.getFileName());
+            if (parDirFile != null) {
+                selectedFile.setFileName(StringTools.rename(selectedFile.getFileName()));
+            }
+            selectedFile.setFilePid(filePid).setLastUpdateTime(curDate);
+            fileInfoMapper.updateById(selectedFile);
+        }
+//        fileInfoMapper.updateBatchIds(selectedFileList);
+        return selectedFileList;
     }
 
     private void updateUserSpace(String userId, Long fileSize) {

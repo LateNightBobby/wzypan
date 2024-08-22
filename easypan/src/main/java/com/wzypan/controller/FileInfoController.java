@@ -128,5 +128,15 @@ public class FileInfoController {
         List folderList = fileInfoService.loadAllFolder(webUserDto.getUserId(), filePid, currentFileIds);
         return Result.success(CopyTools.copyList(folderList, FileInfoDto.class));
     }
+
+    @PostMapping("/changeFileFolder")
+    @GlobalInterceptor(checkParams = true, checkLogin = true)
+    public Result changeFileFolder(HttpSession session,
+                                   @VerifyParam(required = true) String fileIds,
+                                   @VerifyParam(required = true) String filePid) {
+        SessionWebUserDto webUserDto = (SessionWebUserDto) session.getAttribute(Constants.SESSION_KEY);
+        List fileInfoList = fileInfoService.changeFileFolder(webUserDto.getUserId(), fileIds, filePid);
+        return Result.success(CopyTools.copyList(fileInfoList, FileInfoDto.class));
+    }
 }
 

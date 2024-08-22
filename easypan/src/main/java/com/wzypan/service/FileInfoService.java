@@ -37,4 +37,6 @@ public interface FileInfoService extends IService<FileInfo> {
     FileInfo renameFile(String userId, String fileId, String fileName);
 
     List loadAllFolder(String userId, String filePid, String curFileIds);
+
+    List changeFileFolder(String userId, String fileIds, String filePid);
 }
