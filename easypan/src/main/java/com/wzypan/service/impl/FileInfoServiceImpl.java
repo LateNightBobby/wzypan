@@ -1,15 +1,11 @@
 package com.wzypan.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.wzypan.entity.config.AppConfig;
 import com.wzypan.entity.constants.Constants;
-import com.wzypan.entity.dto.FileInfoDto;
-import com.wzypan.entity.dto.SessionWebUserDto;
-import com.wzypan.entity.dto.UploadResultDto;
-import com.wzypan.entity.dto.UserSpaceDto;
+import com.wzypan.entity.dto.*;
 import com.wzypan.entity.enums.*;
 import com.wzypan.entity.page.PageBean;
 import com.wzypan.entity.page.PageQuery;
@@ -33,10 +29,13 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 import org.springframework.web.multipart.MultipartFile;
 
 import javax.annotation.Resource;
+import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
@@ -318,6 +317,42 @@ public class FileInfoServiceImpl extends ServiceImpl<FileInfoMapper, FileInfo> i
         }
         wrapper.orderByDesc(FileInfo::getCreateTime);
         return fileInfoMapper.selectList(wrapper);
+    }
+
+    @Override
+    public void download(String code, HttpServletRequest request, HttpServletResponse response) throws Exception{
+        DownloadFileDto fileDto = redisComponent.getDownloadFile(code);
+        if (fileDto==null) {
+            return;
+        }
+        String filePath = appConfig.getProjectFolder()+Constants.FILE_FOLDER_FILE+fileDto.getFilePath();
+        String fileName = fileDto.getFileName();
+        response.setContentType("application/x-msdownload; charset=UTF-8");
+        if (request.getHeader("User-Agent").toLowerCase().indexOf("msie") > 0) {
+            fileName = URLEncoder.encode(fileName, StandardCharsets.UTF_8);
+        } else {
+            fileName = new String(fileName.getBytes(StandardCharsets.UTF_8), "ISO8859-1");
+        }
+        response.setHeader("Content-Disposition", "attachment;filename=\""+fileName+"\"");
+        com.wzypan.utils.FileUtils.readFile(response, filePath);
+    }
+
+    @Override
+    public String createDownloadUrl(String userId, String fileId) {
+        FileInfo fileInfo = fileInfoMapper.selectByUserIdAndFileId(userId, fileId);
+        if (fileInfo==null) {
+            throw new BusinessException(ResponseCodeEnum.CODE_600);
+        }
+        if (FileFolderTypeEnum.FOLDER.getType().equals(fileInfo.getFolderType())) {
+            throw new BusinessException(ResponseCodeEnum.CODE_600);
+        }
+
+        String code = StringTools.getRandomNumber(Constants.LENGTH_50);
+        DownloadFileDto downloadFileDto = new DownloadFileDto();
+        downloadFileDto.setDownloadCode(code).setFilePath(fileInfo.getFilePath())
+                .setFileName(fileInfo.getFileName()).setFileId(fileId);
+        redisComponent.saveDownloadFile(code, downloadFileDto);
+        return code;
     }
 
     @Override

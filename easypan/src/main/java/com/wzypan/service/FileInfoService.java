@@ -9,6 +9,7 @@ import com.wzypan.entity.po.FileInfo;
 import com.baomidou.mybatisplus.extension.service.IService;
 import org.springframework.web.multipart.MultipartFile;
 
+import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.util.List;
 
@@ -39,4 +40,8 @@ public interface FileInfoService extends IService<FileInfo> {
     List loadAllFolder(String userId, String filePid, String curFileIds);
 
     List changeFileFolder(String userId, String fileIds, String filePid);
+
+    String createDownloadUrl(String userId, String fileId);
+
+    void download(String code, HttpServletRequest request, HttpServletResponse response) throws Exception;
 }

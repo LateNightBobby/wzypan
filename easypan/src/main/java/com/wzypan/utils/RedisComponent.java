@@ -1,6 +1,7 @@
 package com.wzypan.utils;
 
 import com.wzypan.entity.constants.Constants;
+import com.wzypan.entity.dto.DownloadFileDto;
 import com.wzypan.entity.dto.SysSettingsDto;
 import com.wzypan.entity.dto.UserSpaceDto;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -72,4 +73,12 @@ public class RedisComponent {
         return 0L;
     }
 
+    public void saveDownloadFile(String downloadCode, DownloadFileDto downloadFileDto) {
+        redisUtils.setEx(Constants.REDIS_KEY_DOWNLOAD+downloadCode, downloadFileDto, 5L * Constants.REDIS_KEY_EXPIRES_ONE_MIN);
+    }
+
+    public DownloadFileDto getDownloadFile(String downloadCode) {
+        Object obj = redisUtils.get(Constants.REDIS_KEY_DOWNLOAD+downloadCode);
+        return (DownloadFileDto) obj;
+    }
 }

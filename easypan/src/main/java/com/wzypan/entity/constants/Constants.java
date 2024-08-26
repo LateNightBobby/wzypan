@@ -18,6 +18,7 @@ public class Constants {
     public static final String FILE_FOLDER_TEMP_NAME = "temp/";
 
     public static final Integer LENGTH_5 = 5;
+    public static final Integer LENGTH_50 = 50;
 
     public static final Integer USER_ID_LENGTH = 12;
 
@@ -32,6 +33,7 @@ public class Constants {
 
     public static final String REDIS_KEY_USER_SPACE_USE = "easypan_user_spaceuse_";
     public static final String REDIS_KEY_USER_FILE_TEMP_SIZE = "easypan_user_file_temp_";
+    public static final String REDIS_KEY_DOWNLOAD = "easypan_download_";
 
     public static final Integer REDIS_KEY_EXPIRES_ONE_MIN = 60;
     public static final Integer REDIS_KEY_EXPIRES_ONE_HOUR = REDIS_KEY_EXPIRES_ONE_MIN * 60;
@@ -44,4 +46,6 @@ public class Constants {
     public static final String TS_NAME = "index.ts";
 
     public static final String M3U8_NAME = "index.m3u8";
+    public static final String ROOT_DIR_ID = "0";
+
 }

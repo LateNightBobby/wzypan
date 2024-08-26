@@ -22,6 +22,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import javax.annotation.Resource;
+import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 import java.util.ConcurrentModificationException;
@@ -137,6 +138,22 @@ public class FileInfoController {
         SessionWebUserDto webUserDto = (SessionWebUserDto) session.getAttribute(Constants.SESSION_KEY);
         List fileInfoList = fileInfoService.changeFileFolder(webUserDto.getUserId(), fileIds, filePid);
         return Result.success(CopyTools.copyList(fileInfoList, FileInfoDto.class));
+    }
+
+    @RequestMapping("/createDownloadUrl")
+    @GlobalInterceptor(checkParams = true, checkLogin = true)
+    public Result createDownloadUrl (HttpSession session,@VerifyParam(required = true) String fileId) {
+        SessionWebUserDto webUserDto = (SessionWebUserDto) session.getAttribute(Constants.SESSION_KEY);
+        String downloadCoade = fileInfoService.createDownloadUrl(webUserDto.getUserId(), fileId);
+        return Result.success(downloadCoade);
+    }
+
+    @RequestMapping("/download/{code}")
+    @GlobalInterceptor(checkParams = true, checkLogin = true)
+    public Result download(@VerifyParam(required = true) @PathVariable("code") String code,
+                           HttpServletRequest request, HttpServletResponse response) throws Exception {
+        fileInfoService.download(code, request, response);
+        return Result.success();
     }
 }
 

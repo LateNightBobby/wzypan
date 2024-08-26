@@ -14,6 +14,7 @@ public class StringTools {
         return RandomStringUtils.random(count, false, true);
     }
 
+    public static final String getRandomString(Integer count) {return RandomStringUtils.random(count, true, true); }
     public static boolean isEmpty(String s) {
         if (s == null || "".equals(s) || "null".equals(s) || "\u0000".equals(s)) {
             return true;
