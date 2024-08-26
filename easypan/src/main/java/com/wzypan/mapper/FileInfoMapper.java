@@ -4,6 +4,7 @@ import com.wzypan.entity.po.FileInfo;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import org.apache.ibatis.annotations.Param;
 
+import java.util.Date;
 import java.util.List;
 
 /**
@@ -22,5 +23,9 @@ public interface FileInfoMapper extends BaseMapper<FileInfo> {
 
     FileInfo selectByUserIdAndFileId(@Param("userId") String userId, @Param("fileId") String fileId);
 
-    void updateBatchIds(@Param("fileInfoList")List<FileInfo> fileInfoList);
+//    void updateBatchIds(@Param("fileInfoList")List<FileInfo> fileInfoList);
+
+    void updateDelFlagBatchIds(@Param("userId") String userId,
+                               @Param("fileIdList") List<String> fileIdList, @Param("filePidList") List<String> filePidList,
+                               @Param("recoveryTime")Date date, @Param("delFlag") Integer delFlag, @Param("oldDelFlag") Integer oldDelFlag);
 }

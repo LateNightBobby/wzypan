@@ -155,5 +155,16 @@ public class FileInfoController {
         fileInfoService.download(code, request, response);
         return Result.success();
     }
+
+    @RequestMapping("/delFile")
+    @GlobalInterceptor(checkParams = true, checkLogin = true)
+    public Result delFile(HttpSession session, @VerifyParam(required = true) String fileIds){
+        SessionWebUserDto webUserDto = (SessionWebUserDto) session.getAttribute(Constants.SESSION_KEY);
+        String[] fileIdArray = fileIds.split(",");
+        fileInfoService.removeFile2RecycleBatch(webUserDto.getUserId(), fileIdArray);
+        return Result.success();
+    }
+
+
 }
 

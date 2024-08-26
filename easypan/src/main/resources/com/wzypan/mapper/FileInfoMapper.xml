@@ -57,4 +57,16 @@
 <!--            #{item.fileId}-->
 <!--        </foreach>>-->
 <!--    </update>-->
+    
+    <update id="updateDelFlagBatchIds">
+        update file_info
+        set recovery_time = #{recoveryTime}, del_flag = #{delFlag}
+        where user_id = #{userId} and del_flag = #{oldDelFlag}
+        <if test="fileIdList!=null">
+            and file_id in <foreach collection="fileIdList" open="(" separator="," item="item" close=")">#{item}</foreach>
+        </if>
+        <if test="filePidList!=null">
+            and file_pid in <foreach collection="filePidList" open="(" separator="," item="item" close=")">#{item}</foreach>
+        </if>
+    </update>
 </mapper>

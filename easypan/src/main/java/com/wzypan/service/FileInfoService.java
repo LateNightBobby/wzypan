@@ -44,4 +44,7 @@ public interface FileInfoService extends IService<FileInfo> {
     String createDownloadUrl(String userId, String fileId);
 
     void download(String code, HttpServletRequest request, HttpServletResponse response) throws Exception;
+
+    void removeFile2RecycleBatch(String userId, String[] fileIdArray);
+
 }

@@ -36,10 +36,7 @@ import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
-import java.util.Date;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -251,6 +248,7 @@ public class FileInfoServiceImpl extends ServiceImpl<FileInfoMapper, FileInfo> i
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public FileInfo newFolder(String filePid, String folderName, String userId) {
         checkFileNameOk(folderName, FileFolderTypeEnum.FOLDER.getType(), filePid, userId);
         Date curDate = new Date();
@@ -317,6 +315,34 @@ public class FileInfoServiceImpl extends ServiceImpl<FileInfoMapper, FileInfo> i
         }
         wrapper.orderByDesc(FileInfo::getCreateTime);
         return fileInfoMapper.selectList(wrapper);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void removeFile2RecycleBatch(String userId, String[] fileIdArray) {
+        //查要删除的文件
+        LambdaQueryWrapper<FileInfo> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(FileInfo::getUserId, userId).eq(FileInfo::getDelFlag, FileDelFlagEnum.USING.getFlag());
+        wrapper.in(FileInfo::getFileId, Arrays.asList(fileIdArray));
+        List<FileInfo> fileInfoList = fileInfoMapper.selectList(wrapper);
+        if (fileInfoList==null) {
+            return;
+        }
+        //文件夹递归删除子文件
+        List<String> delFilePidList = new ArrayList<>();
+        for (FileInfo fileInfo: fileInfoList) {
+            if (fileInfo.getFolderType().equals(FileFolderTypeEnum.FOLDER.getType())) {
+                this.findAllSubFolderFileList(delFilePidList, fileInfo.getFileId(), userId, FileDelFlagEnum.USING.getFlag());
+            }
+        }
+        //子文件及子文件夹设置为删除
+        if (!delFilePidList.isEmpty()) {
+            fileInfoMapper.updateDelFlagBatchIds(userId, null, delFilePidList, new Date(),
+                    FileDelFlagEnum.DEL.getFlag(), FileDelFlagEnum.USING.getFlag());
+        }
+        //直接选中的放在回收站
+        fileInfoMapper.updateDelFlagBatchIds(userId, Arrays.asList(fileIdArray), null, new Date(),
+                FileDelFlagEnum.RECYCLE.getFlag(), FileDelFlagEnum.USING.getFlag());
     }
 
     @Override
@@ -569,6 +595,28 @@ public class FileInfoServiceImpl extends ServiceImpl<FileInfoMapper, FileInfo> i
         Integer count = fileInfoMapper.selectCount(wrapper);
         if (count > 0) {
             throw new BusinessException("该目录下存在同名文件，请重新命名");
+        }
+    }
+
+    /**
+     *
+     * @param fileIdList 用于记录要被删除的Pid
+     * @param fileId
+     * @param userId
+     * @param delFlag
+     */
+    private void findAllSubFolderFileList(List<String> fileIdList, String fileId, String userId, Integer delFlag) {
+        fileIdList.add(fileId);
+        LambdaQueryWrapper<FileInfo> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(FileInfo::getUserId, userId).eq(FileInfo::getFilePid, fileId).eq(FileInfo::getDelFlag, delFlag);
+        List<FileInfo> subFileInfoList = fileInfoMapper.selectList(wrapper);
+        for (FileInfo subFile: subFileInfoList) {
+            if (FileFolderTypeEnum.FOLDER.getType().equals(subFile.getFolderType())) {
+                findAllSubFolderFileList(fileIdList, subFile.getFileId(), userId, delFlag);
+            }
+//            else {
+//                fileIdList.add(subFile.getFileId());
+//            }
         }
     }
 }
