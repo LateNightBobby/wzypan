@@ -25,7 +25,10 @@ public interface FileInfoMapper extends BaseMapper<FileInfo> {
 
 //    void updateBatchIds(@Param("fileInfoList")List<FileInfo> fileInfoList);
 
-    void updateDelFlagBatchIds(@Param("userId") String userId,
+    void updateDelFlagBatchIds(@Param("userId") String userId, @Param("bean")FileInfo fileInfo,
                                @Param("fileIdList") List<String> fileIdList, @Param("filePidList") List<String> filePidList,
-                               @Param("recoveryTime")Date date, @Param("delFlag") Integer delFlag, @Param("oldDelFlag") Integer oldDelFlag);
+                               @Param("oldDelFlag") Integer oldDelFlag);
+    void delFileBatchIds(@Param("userId") String userId,
+                               @Param("fileIdList") List<String> fileIdList, @Param("filePidList") List<String> filePidList,
+                               @Param("oldDelFlag") Integer oldDelFlag);
 }

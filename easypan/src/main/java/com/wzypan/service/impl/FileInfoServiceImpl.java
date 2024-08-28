@@ -69,19 +69,44 @@ public class FileInfoServiceImpl extends ServiceImpl<FileInfoMapper, FileInfo> i
 
 
     @Override
-    public PageBean pageDataList(PageQuery pageQuery, SessionWebUserDto userDto, FileCategoryEnum categoryEnum, String filePid, String fileNameFuzzy) {
-        LambdaQueryWrapper<FileInfo> wrapper = new LambdaQueryWrapper<>();
+    public PageBean pageDataList(PageQuery pageQuery, LambdaQueryWrapper wrapper) {
         //code为null 即为all 选择所有文件
-        if (categoryEnum!=null) {
-            wrapper.eq(FileInfo::getFileCategory, categoryEnum.getCode());
-        }
-        wrapper .eq(FileInfo::getUserId, userDto.getUserId())
-                .eq(FileInfo::getDelFlag, FileDelFlagEnum.USING.getFlag())
-                .eq(FileInfo::getFilePid, filePid).like(!fileNameFuzzy.isEmpty() && !fileNameFuzzy.isBlank(), FileInfo::getFileName, fileNameFuzzy);
-        wrapper.orderByDesc(FileInfo::getLastUpdateTime);
+
         Page<FileInfo> page = new Page<>(pageQuery.getPageNo()==null? 1: pageQuery.getPageNo(), pageQuery.getPageSize()==null? 15: pageQuery.getPageSize());
-        IPage<FileInfo> filePage = fileInfoMapper.selectPage(page, wrapper);
+        IPage filePage = fileInfoMapper.selectPage(page, wrapper);
         return PageBean.convertFromPage(filePage);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void delFileBatch(String userId, List<String> fileIdList, boolean adminOp) {
+        LambdaQueryWrapper<FileInfo> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(FileInfo::getUserId, userId).eq(FileInfo::getDelFlag, FileDelFlagEnum.RECYCLE.getFlag()).in(FileInfo::getFileId, fileIdList);
+        List<FileInfo> dbFileList = fileInfoMapper.selectList(wrapper);
+        //找到子文件
+        List<String> delFileSubFilePidList = new ArrayList<>();
+        for (FileInfo item: dbFileList) {
+            findAllSubFolderFileList(delFileSubFilePidList, item.getFileId(), userId, FileDelFlagEnum.DEL.getFlag());
+        }
+        //删除子文件
+        if (!delFileSubFilePidList.isEmpty()) {
+            fileInfoMapper.delFileBatchIds(userId, null, delFileSubFilePidList,
+                    adminOp? null: FileDelFlagEnum.DEL.getFlag());
+        }
+        //删除所选文件
+        fileInfoMapper.delFileBatchIds(userId, fileIdList, null,
+                adminOp? null: FileDelFlagEnum.RECYCLE.getFlag());
+        //更新缓存和用户使用空间
+        Long usedSpace = fileInfoMapper.selectUseSpace(userId);
+        UserInfo userInfo = userInfoService.getById(userId);
+        userInfo.setUseSpace(usedSpace);
+        userInfoService.updateById(userInfo);
+
+        UserSpaceDto userSpaceDto = redisComponent.getUserSpace(userId);
+        userSpaceDto.setUseSpace(usedSpace);
+        redisComponent.saveUserSpaceUse(userId, userSpaceDto);
+
+        //？物理删除 --》 判断是否有相同的md5，没有则可以删除
     }
 
     @Override
@@ -104,10 +129,12 @@ public class FileInfoServiceImpl extends ServiceImpl<FileInfoMapper, FileInfo> i
             //第一个分片
             if (chunkIndex == 0) {
                 LambdaQueryWrapper<FileInfo> wrapper = new LambdaQueryWrapper<>();
-                wrapper.eq(FileInfo::getFileMd5, fileMd5).eq(FileInfo::getStatus, FileStatusEnum.USING.getStatus());
-                FileInfo dbFile = fileInfoMapper.selectOne(wrapper);
+                wrapper.eq(FileInfo::getFileMd5, fileMd5).eq(FileInfo::getDelFlag, FileStatusEnum.USING.getStatus());
+                List<FileInfo> dbFileList = fileInfoMapper.selectList(wrapper);
+//                FileInfo dbFile = fileInfoMapper.selectOne(wrapper);
                 //存在文件 不重复上传
-                if (dbFile != null) {
+                if (!dbFileList.isEmpty()) {
+                    FileInfo dbFile = dbFileList.get(0);
                     if (dbFile.getFileSize() + userSpaceDto.getUseSpace() > userSpaceDto.getTotalSpace()) {
                         throw new BusinessException(ResponseCodeEnum.CODE_904);
                     }
@@ -157,7 +184,7 @@ public class FileInfoServiceImpl extends ServiceImpl<FileInfoMapper, FileInfo> i
             String realFileName = currentUserFolderName + fileSuffix;
             FileTypeEnum fileType = FileTypeEnum.getFileTypeBySuffix(fileSuffix);
             //自动重命名
-            fileName = autoRename(realFileName, userDto.getUserId(), filePid);
+//            fileName = autoRename(realFileName, userDto.getUserId(), filePid);
             //装入数据库
             FileInfo fileInfo = new FileInfo().setFileId(fileId).setUserId(userDto.getUserId());
             fileInfo.setFileMd5(fileMd5).setFilePid(filePid).setFileName(fileName);
@@ -294,7 +321,8 @@ public class FileInfoServiceImpl extends ServiceImpl<FileInfoMapper, FileInfo> i
 
         //再次查一遍，并发时若重复回滚
         LambdaQueryWrapper<FileInfo> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(FileInfo::getFileName, fileName).eq(FileInfo::getFilePid, filePid).eq(FileInfo::getUserId, userId);
+        wrapper.eq(FileInfo::getFileName, fileName).eq(FileInfo::getFilePid, filePid)
+                .eq(FileInfo::getUserId, userId).eq(FileInfo::getDelFlag, FileDelFlagEnum.USING.getFlag());
         Integer count = fileInfoMapper.selectCount(wrapper);
         if (count > 1) {
             throw new BusinessException("文件名" + fileName + "已存在");
@@ -335,14 +363,52 @@ public class FileInfoServiceImpl extends ServiceImpl<FileInfoMapper, FileInfo> i
                 this.findAllSubFolderFileList(delFilePidList, fileInfo.getFileId(), userId, FileDelFlagEnum.USING.getFlag());
             }
         }
+        FileInfo updateInfo = new FileInfo().setRecoveryTime(new Date()).setDelFlag(FileDelFlagEnum.DEL.getFlag());
         //子文件及子文件夹设置为删除
         if (!delFilePidList.isEmpty()) {
-            fileInfoMapper.updateDelFlagBatchIds(userId, null, delFilePidList, new Date(),
-                    FileDelFlagEnum.DEL.getFlag(), FileDelFlagEnum.USING.getFlag());
+            fileInfoMapper.updateDelFlagBatchIds(userId, updateInfo, null, delFilePidList, FileDelFlagEnum.USING.getFlag());
         }
         //直接选中的放在回收站
-        fileInfoMapper.updateDelFlagBatchIds(userId, Arrays.asList(fileIdArray), null, new Date(),
-                FileDelFlagEnum.RECYCLE.getFlag(), FileDelFlagEnum.USING.getFlag());
+        updateInfo = new FileInfo().setRecoveryTime(new Date()).setDelFlag(FileDelFlagEnum.RECYCLE.getFlag());
+        fileInfoMapper.updateDelFlagBatchIds(userId, updateInfo, Arrays.asList(fileIdArray), null, FileDelFlagEnum.USING.getFlag());
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void recoverFileBatch(String userId, List<String> fileIdList) {
+        LambdaQueryWrapper<FileInfo> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(FileInfo::getUserId, userId).in(FileInfo::getFileId, fileIdList)
+                .eq(FileInfo::getDelFlag, FileDelFlagEnum.RECYCLE.getFlag());
+        List<FileInfo> recoverFileList = fileInfoMapper.selectList(wrapper);
+        //将delete的子文件找出
+        List<String> recoverFilePidList = new ArrayList<>();
+        for (FileInfo fileInfo: recoverFileList) {
+            if (FileFolderTypeEnum.FOLDER.getType().equals(fileInfo.getFolderType())) {
+                findAllSubFolderFileList(recoverFilePidList, fileInfo.getFileId(), userId, FileDelFlagEnum.DEL.getFlag());
+            }
+        }
+        //获取根目录下文件名的map
+        LambdaQueryWrapper<FileInfo> rootFileWrapper = new LambdaQueryWrapper<>();
+        rootFileWrapper.eq(FileInfo::getUserId, userId).eq(FileInfo::getFilePid, Constants.ROOT_DIR_ID)
+                .eq(FileInfo::getDelFlag, FileDelFlagEnum.USING.getFlag());
+        List<FileInfo> rootFileList = fileInfoMapper.selectList(rootFileWrapper);
+        Map<String, FileInfo> rootFileNameMap = rootFileList.stream().collect(Collectors.toMap(FileInfo::getFileName, e-> e));
+        FileInfo updateInfo = new FileInfo().setDelFlag(FileDelFlagEnum.USING.getFlag());
+        //恢复子文件
+        if (!recoverFilePidList.isEmpty()) {
+            fileInfoMapper.updateDelFlagBatchIds(userId,updateInfo, null, recoverFilePidList,FileDelFlagEnum.DEL.getFlag());
+        }
+        //回复父文件到根目录
+        updateInfo = new FileInfo().setDelFlag(FileDelFlagEnum.USING.getFlag()).setLastUpdateTime(new Date()).setFilePid(Constants.ROOT_DIR_ID);
+        fileInfoMapper.updateDelFlagBatchIds(userId, updateInfo, fileIdList, null, FileDelFlagEnum.RECYCLE.getFlag());
+        //检查父文件是否出现重名
+        for (FileInfo fileInfo: recoverFileList) {
+            FileInfo value = rootFileNameMap.get(fileInfo.getFileName());
+            if (value!=null) {
+                fileInfo.setFileName(StringTools.rename(fileInfo.getFileName()));
+                fileInfoMapper.updateById(fileInfo);
+            }
+        }
     }
 
     @Override
@@ -591,7 +657,8 @@ public class FileInfoServiceImpl extends ServiceImpl<FileInfoMapper, FileInfo> i
     private void checkFileNameOk(String fileName, Integer folderType, String filePid, String userId) {
         LambdaQueryWrapper<FileInfo> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(FileInfo::getFileName, fileName).eq(FileInfo::getFolderType, folderType)
-                .eq(FileInfo::getFilePid, filePid).eq(FileInfo::getUserId, userId);
+                .eq(FileInfo::getFilePid, filePid).eq(FileInfo::getUserId, userId)
+                .eq(FileInfo::getDelFlag, FileDelFlagEnum.USING.getFlag());
         Integer count = fileInfoMapper.selectCount(wrapper);
         if (count > 0) {
             throw new BusinessException("该目录下存在同名文件，请重新命名");

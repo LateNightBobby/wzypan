@@ -1,6 +1,7 @@
 package com.wzypan.controller;
 
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.api.R;
 import com.wzypan.annotation.GlobalInterceptor;
 import com.wzypan.annotation.VerifyParam;
@@ -8,6 +9,7 @@ import com.wzypan.entity.constants.Constants;
 import com.wzypan.entity.dto.FileInfoDto;
 import com.wzypan.entity.dto.SessionWebUserDto;
 import com.wzypan.entity.dto.UploadResultDto;
+import com.wzypan.entity.enums.FileDelFlagEnum;
 import com.wzypan.entity.enums.VerifyRegexEnum;
 import com.wzypan.entity.page.PageBean;
 import com.wzypan.entity.page.PageQuery;
@@ -49,7 +51,16 @@ public class FileInfoController {
 
         FileCategoryEnum categoryCode = FileCategoryEnum.getByCategory(category);
         SessionWebUserDto userDto = (SessionWebUserDto) session.getAttribute(Constants.SESSION_KEY);
-        PageBean pageResult = fileInfoService.pageDataList(pageQuery, userDto, categoryCode, filePid, fileNameFuzzy);
+        LambdaQueryWrapper<FileInfo> wrapper = new LambdaQueryWrapper<>();
+        //没有指定类别则找所有文件
+        if (categoryCode!=null) {
+            wrapper.eq(FileInfo::getFileCategory, categoryCode.getCode());
+        }
+        wrapper .eq(FileInfo::getUserId, userDto.getUserId())
+                .eq(FileInfo::getDelFlag, FileDelFlagEnum.USING.getFlag())
+                .eq(FileInfo::getFilePid, filePid).like(!fileNameFuzzy.isEmpty() && !fileNameFuzzy.isBlank(), FileInfo::getFileName, fileNameFuzzy);
+        wrapper.orderByDesc(FileInfo::getLastUpdateTime);
+        PageBean pageResult = fileInfoService.pageDataList(pageQuery, wrapper);
         return Result.success(pageResult);
     }
 
@@ -140,9 +151,10 @@ public class FileInfoController {
         return Result.success(CopyTools.copyList(fileInfoList, FileInfoDto.class));
     }
 
-    @RequestMapping("/createDownloadUrl")
+    @PostMapping("/createDownloadUrl/{fileId}")
     @GlobalInterceptor(checkParams = true, checkLogin = true)
-    public Result createDownloadUrl (HttpSession session,@VerifyParam(required = true) String fileId) {
+    public Result createDownloadUrl (HttpSession session,
+                                     @PathVariable("fileId") @VerifyParam(required = true) String fileId) {
         SessionWebUserDto webUserDto = (SessionWebUserDto) session.getAttribute(Constants.SESSION_KEY);
         String downloadCoade = fileInfoService.createDownloadUrl(webUserDto.getUserId(), fileId);
         return Result.success(downloadCoade);

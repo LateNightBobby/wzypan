@@ -4,6 +4,7 @@ import com.wzypan.entity.constants.Constants;
 import com.wzypan.entity.dto.DownloadFileDto;
 import com.wzypan.entity.dto.SysSettingsDto;
 import com.wzypan.entity.dto.UserSpaceDto;
+import com.wzypan.mapper.FileInfoMapper;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
 
@@ -13,10 +14,10 @@ import javax.annotation.Resource;
 public class RedisComponent {
 
     @Resource
-    private RedisTemplate redisTemplate;
+    private RedisUtils redisUtils;
 
     @Resource
-    private RedisUtils redisUtils;
+    private FileInfoMapper fileInfoMapper;
 
     public String testRedis() {
         redisUtils.set("wzy", "very good");
@@ -44,7 +45,8 @@ public class RedisComponent {
     public UserSpaceDto getUserSpace(String userId) {
         UserSpaceDto userSpaceDto = (UserSpaceDto) redisUtils.get(Constants.REDIS_KEY_USER_SPACE_USE + userId);
         if (userSpaceDto == null) {
-            userSpaceDto = new UserSpaceDto().setUseSpace(0L).setTotalSpace(getSysSettingsDto().getUserInitUseSpace() * Constants.MB);
+            userSpaceDto = new UserSpaceDto().setUseSpace(fileInfoMapper.selectUseSpace(userId))
+                    .setTotalSpace(getSysSettingsDto().getUserInitUseSpace() * Constants.MB);
             saveUserSpaceUse(userId, userSpaceDto);
         }
         return userSpaceDto;

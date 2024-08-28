@@ -1,5 +1,6 @@
 package com.wzypan.service;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.wzypan.entity.dto.SessionWebUserDto;
 import com.wzypan.entity.dto.UploadResultDto;
 import com.wzypan.entity.enums.FileCategoryEnum;
@@ -23,7 +24,7 @@ import java.util.List;
  */
 public interface FileInfoService extends IService<FileInfo> {
 
-    PageBean pageDataList(PageQuery pageQuery, SessionWebUserDto userDto, FileCategoryEnum categoryEnum, String filePid, String fileNameFuzzy);
+    PageBean pageDataList(PageQuery pageQuery, LambdaQueryWrapper wrapper);
 
     UploadResultDto uploadFile(SessionWebUserDto userDto, String fileId, MultipartFile file, String fileName, String filePid, String fileMd5, Integer chunkIndex, Integer chunks);
 
@@ -46,5 +47,9 @@ public interface FileInfoService extends IService<FileInfo> {
     void download(String code, HttpServletRequest request, HttpServletResponse response) throws Exception;
 
     void removeFile2RecycleBatch(String userId, String[] fileIdArray);
+
+    void recoverFileBatch(String userId, List<String> fileIdList);
+
+    void delFileBatch(String userId, List<String> fileIdList, boolean adminOp);
 
 }
