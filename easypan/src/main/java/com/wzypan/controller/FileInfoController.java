@@ -58,7 +58,7 @@ public class FileInfoController {
         }
         wrapper .eq(FileInfo::getUserId, userDto.getUserId())
                 .eq(FileInfo::getDelFlag, FileDelFlagEnum.USING.getFlag())
-                .eq(FileInfo::getFilePid, filePid).like(!fileNameFuzzy.isEmpty() && !fileNameFuzzy.isBlank(), FileInfo::getFileName, fileNameFuzzy);
+                .eq(FileInfo::getFilePid, filePid==null?0:filePid).like(!fileNameFuzzy.isEmpty() && !fileNameFuzzy.isBlank(), FileInfo::getFileName, fileNameFuzzy);
         wrapper.orderByDesc(FileInfo::getLastUpdateTime);
         PageBean pageResult = fileInfoService.pageDataList(pageQuery, wrapper);
         return Result.success(pageResult);

@@ -21,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 import javax.annotation.Resource;
 import java.util.Arrays;
 import java.util.Date;
+import java.util.List;
 
 /**
  * <p>
@@ -41,8 +42,9 @@ public class FileShareServiceImpl extends ServiceImpl<FileShareMapper, FileShare
         LambdaQueryWrapper<FileShare> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(FileShare::getUserId, userId);
         Page<FileShare> page = new Page<>(pageQuery.getPageNo()==null? 1: pageQuery.getPageNo(), pageQuery.getPageSize()==null? 15: pageQuery.getPageSize());
-        IPage iPage = fileShareMapper.selectPage(page, wrapper);
-        return PageBean.convertFromPage(iPage);
+//        IPage iPage = fileShareMapper.selectPage(page, wrapper);
+        List<FileShare> fileShares = fileShareMapper.selectPageWithJoin(page, userId);
+        return PageBean.convertFromPage(page).setList(fileShares);
     }
 
     @Override

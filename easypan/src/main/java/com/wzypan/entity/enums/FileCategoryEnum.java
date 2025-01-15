@@ -20,7 +20,7 @@ public enum FileCategoryEnum {
 
     public static FileCategoryEnum getByCategory(String category) {
         for (FileCategoryEnum item: FileCategoryEnum.values()) {
-            if (item.getCode().equals(category)) {
+            if (item.getCategory().equals(category)) {
                 return item;
             }
         }
