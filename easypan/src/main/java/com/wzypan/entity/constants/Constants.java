@@ -35,6 +35,8 @@ public class Constants {
     public static final String REDIS_KEY_USER_FILE_TEMP_SIZE = "easypan_user_file_temp_";
     public static final String REDIS_KEY_DOWNLOAD = "easypan_download_";
 
+    public static final String REDIS_KEY_EMAIL_CODE = "easypan_email_code_";
+
     public static final Integer REDIS_KEY_EXPIRES_ONE_MIN = 60;
     public static final Integer REDIS_KEY_EXPIRES_ONE_HOUR = REDIS_KEY_EXPIRES_ONE_MIN * 60;
     public static final Integer REDIS_KEY_EXPIRES_ONE_DAY = REDIS_KEY_EXPIRES_ONE_HOUR * 24;

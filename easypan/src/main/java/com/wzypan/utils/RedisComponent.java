@@ -83,4 +83,18 @@ public class RedisComponent {
         Object obj = redisUtils.get(Constants.REDIS_KEY_DOWNLOAD+downloadCode);
         return (DownloadFileDto) obj;
     }
+
+    public void saveEmailCode(String email, String emailCode) {
+        redisUtils.setEx(Constants.REDIS_KEY_EMAIL_CODE+email, emailCode, 15L * Constants.REDIS_KEY_EXPIRES_ONE_MIN);
+    }
+
+    public String getEmailCode(String email) {
+        Object obj = redisUtils.get(Constants.REDIS_KEY_EMAIL_CODE+email);
+        return (String) obj;
+    }
+
+    public void disableEmailCode(String email) {
+        redisUtils.delete(Constants.REDIS_KEY_EMAIL_CODE+email);
+    }
+
 }

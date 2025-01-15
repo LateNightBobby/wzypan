@@ -169,14 +169,13 @@ public class FileInfoServiceImpl extends ServiceImpl<FileInfoMapper, FileInfo> i
 
             File newFile = new File(tempFileFolder.getPath() + "/" + chunkIndex);
             file.transferTo(newFile);
+            redisComponent.saveFileTempSize(userDto.getUserId(), fileId, file.getSize());
             //未传完所有分片
             if (chunkIndex < chunks - 1) {
                 resultDto.setStatus(UploadStatusEnum.UPLOADING.getStatus());
-                redisComponent.saveFileTempSize(userDto.getUserId(), fileId, file.getSize());
                 return resultDto;
             }
 
-            redisComponent.saveFileTempSize(userDto.getUserId(), fileId, file.getSize());
             //上传完毕所有分片 更新数据库 合并
             String month = DateFormatUtils.format(new Date(), DateTimePatternEnum.YYYYMM.getPattern());
             String fileSuffix = StringTools.getFileSuffix(fileName);

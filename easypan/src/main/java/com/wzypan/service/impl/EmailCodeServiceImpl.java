@@ -68,16 +68,17 @@ public class EmailCodeServiceImpl extends ServiceImpl<EmailCodeMapper, EmailCode
         String code = StringTools.getRandomNumber(Constants.LENGTH_5);
         sendEmailWithCode(email, code);
 
-        //禁用上一条验证码
-        emailCodeMapper.disableEmailCode(email);
-        //插入新的验证码
-//        log.info(email);
-        EmailCode emailCode = new EmailCode()
-                .setCode(code).setEmail(email)
-                .setStatus(Constants.STATUS_USED)
-                .setCreateTime(new Date());
-//        log.info(emailCode.toString());
-        emailCodeMapper.insert(emailCode);
+        redisComponent.saveEmailCode(email, code);
+//        //禁用上一条验证码
+//        emailCodeMapper.disableEmailCode(email);
+//        //插入新的验证码
+////        log.info(email);
+//        EmailCode emailCode = new EmailCode()
+//                .setCode(code).setEmail(email)
+//                .setStatus(Constants.STATUS_USED)
+//                .setCreateTime(new Date());
+////        log.info(emailCode.toString());
+//        emailCodeMapper.insert(emailCode);
     }
 
     public void sendEmailWithCode(String toEmail, String code){
@@ -104,15 +105,24 @@ public class EmailCodeServiceImpl extends ServiceImpl<EmailCodeMapper, EmailCode
 
     @Override
     public void verifyEmailCode(String email, String code) {
-        LambdaQueryWrapper<EmailCode> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(EmailCode::getEmail, email).eq(EmailCode::getStatus, Constants.STATUS_USED);
-        EmailCode emailCode = emailCodeMapper.selectOne(wrapper);
-        if (emailCode == null || !Objects.equals(emailCode.getCode(), code)) {
-            throw new BusinessException(ResponseCodeEnum.CODE_600.getCode(), "wrong email code");
-        }
-        if (System.currentTimeMillis() - emailCode.getCreateTime().getTime() > Constants.EMAIL_CODE_VALID_PERIOD_MIN * 60 * 1000) {
+        String emailCodeSaved = redisComponent.getEmailCode(email);
+        if (emailCodeSaved==null) {
             throw new BusinessException(ResponseCodeEnum.CODE_600.getCode(), "email code expired");
         }
-        emailCodeMapper.disableEmailCode(email);
+        if (!Objects.equals(code, emailCodeSaved)) {
+            throw new BusinessException(ResponseCodeEnum.CODE_600.getCode(), "wrong email code");
+        }
+        redisComponent.disableEmailCode(email);
+
+//        LambdaQueryWrapper<EmailCode> wrapper = new LambdaQueryWrapper<>();
+//        wrapper.eq(EmailCode::getEmail, email).eq(EmailCode::getStatus, Constants.STATUS_USED);
+//        EmailCode emailCode = emailCodeMapper.selectOne(wrapper);
+//        if (emailCode == null || !Objects.equals(emailCode.getCode(), code)) {
+//            throw new BusinessException(ResponseCodeEnum.CODE_600.getCode(), "wrong email code");
+//        }
+//        if (System.currentTimeMillis() - emailCode.getCreateTime().getTime() > Constants.EMAIL_CODE_VALID_PERIOD_MIN * 60 * 1000) {
+//            throw new BusinessException(ResponseCodeEnum.CODE_600.getCode(), "email code expired");
+//        }
+//        emailCodeMapper.disableEmailCode(email);
     }
 }
