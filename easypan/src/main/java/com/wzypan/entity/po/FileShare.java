@@ -42,7 +42,7 @@ public class FileShare implements Serializable {
     /**
      * 有效期类型：0-1天，1-7天，2-30天，3-永久
      */
-    private Boolean validType;
+    private Integer validType;
 
     /**
      * 过期时间

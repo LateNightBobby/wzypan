@@ -17,4 +17,8 @@ public interface FileShareService extends IService<FileShare> {
 
     PageBean pageShareList(String userId, PageQuery pageQuery);
 
+    void saveShare(FileShare fileShare);
+
+    void deleteFileShareBatch(String[] shareIdArray, String userId);
+
 }

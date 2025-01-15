@@ -8,6 +8,7 @@ import com.wzypan.entity.constants.Constants;
 import com.wzypan.entity.dto.SessionWebUserDto;
 import com.wzypan.entity.page.PageBean;
 import com.wzypan.entity.page.PageQuery;
+import com.wzypan.entity.po.FileShare;
 import com.wzypan.service.FileShareService;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -44,14 +45,17 @@ public class FileShareController {
     public Result shareFile(@VerifyParam(required = true)String fileId, @VerifyParam(required = true)Integer validType,
                             HttpSession session, String code) {
         SessionWebUserDto userDto = (SessionWebUserDto) session.getAttribute(Constants.SESSION_KEY);
-
-        return Result.success();
+        FileShare fileShare = new FileShare();
+        fileShare.setCode(code).setValidType(validType).setFileId(fileId).setUserId(userDto.getUserId()).setShowCount(0);
+        fileShareService.saveShare(fileShare);
+        return Result.success(fileShare);
     }
     @PostMapping("/cancelShare")
     @GlobalInterceptor(checkParams = true, checkLogin = true)
     public Result cancelShare(@VerifyParam(required = true)String shareIds, HttpSession session) {
         SessionWebUserDto userDto = (SessionWebUserDto) session.getAttribute(Constants.SESSION_KEY);
-
+        String[] shareIdArray = shareIds.split(",");
+        fileShareService.deleteFileShareBatch(shareIdArray, userDto.getUserId());
         return Result.success();
     }
 }
