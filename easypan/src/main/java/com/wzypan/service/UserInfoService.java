@@ -35,4 +35,8 @@ public interface UserInfoService extends IService<UserInfo> {
     String qqlogin(HttpSession session, String callBackUrl);
 
     SessionWebUserDto qqLoginCallback(String code);
+
+    void updateUserStatus(String userId, Integer status);
+
+    void changeUserSpace(String userId, Integer changeSpace);
 }

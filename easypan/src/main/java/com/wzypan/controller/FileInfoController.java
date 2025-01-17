@@ -156,8 +156,8 @@ public class FileInfoController {
     public Result createDownloadUrl (HttpSession session,
                                      @PathVariable("fileId") @VerifyParam(required = true) String fileId) {
         SessionWebUserDto webUserDto = (SessionWebUserDto) session.getAttribute(Constants.SESSION_KEY);
-        String downloadCoade = fileInfoService.createDownloadUrl(webUserDto.getUserId(), fileId);
-        return Result.success(downloadCoade);
+        String downloadCode = fileInfoService.createDownloadUrl(webUserDto.getUserId(), fileId);
+        return Result.success(downloadCode);
     }
 
     @RequestMapping("/download/{code}")

@@ -291,7 +291,7 @@ public class FileInfoServiceImpl extends ServiceImpl<FileInfoMapper, FileInfo> i
     public List getFolderInfo(String userId, String path) {
         String[] pathArray = path.split("/");
         LambdaQueryWrapper<FileInfo> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(FileInfo::getUserId, userId).eq(FileInfo::getFolderType, FileFolderTypeEnum.FOLDER.getType())
+        wrapper.eq(userId!=null, FileInfo::getUserId, userId).eq(FileInfo::getFolderType, FileFolderTypeEnum.FOLDER.getType())
                 .in(FileInfo::getFileId, Arrays.asList(pathArray));
         String orderSql = String.join(",", pathArray);
         wrapper.last("ORDER BY FIELD(file_id, " + orderSql + ")");

@@ -4,7 +4,9 @@ import com.wzypan.entity.constants.Constants;
 import com.wzypan.entity.dto.DownloadFileDto;
 import com.wzypan.entity.dto.SysSettingsDto;
 import com.wzypan.entity.dto.UserSpaceDto;
+import com.wzypan.entity.po.UserInfo;
 import com.wzypan.mapper.FileInfoMapper;
+import com.wzypan.mapper.UserInfoMapper;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
 
@@ -18,6 +20,9 @@ public class RedisComponent {
 
     @Resource
     private FileInfoMapper fileInfoMapper;
+
+    @Resource
+    private UserInfoMapper userInfoMapper;
 
     public String testRedis() {
         redisUtils.set("wzy", "very good");
@@ -37,9 +42,21 @@ public class RedisComponent {
         return sysSettingsDto;
     }
 
+    public void saveSysSettingsDto(SysSettingsDto sysSettingsDto) {
+        redisUtils.set(Constants.REDIS_KEY_SYS_SETTING, sysSettingsDto);
+    }
+
     public void saveUserSpaceUse(String userId, UserSpaceDto userSpaceDto) {
         redisUtils.setEx(Constants.REDIS_KEY_USER_SPACE_USE+userId, userSpaceDto, Long.valueOf(Constants.REDIS_KEY_EXPIRES_ONE_DAY));
 
+    }
+
+    public UserSpaceDto resetUserSpace(String userId) {
+        UserInfo userInfo = userInfoMapper.selectById(userId);
+        UserSpaceDto userSpaceDto = new UserSpaceDto().setTotalSpace(userInfo.getTotalSpace())
+                .setUseSpace(fileInfoMapper.selectUseSpace(userId));
+        saveUserSpaceUse(userId, userSpaceDto);
+        return userSpaceDto;
     }
 
     public UserSpaceDto getUserSpace(String userId) {

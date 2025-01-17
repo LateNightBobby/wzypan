@@ -210,6 +210,25 @@ public class UserInfoServiceImpl extends ServiceImpl<UserInfoMapper, UserInfo> i
         return null;
     }
 
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void updateUserStatus(String userId, Integer status) {
+        UserInfo userInfo = userInfoMapper.selectById(userId);
+        userInfo.setStatus(status);
+        if (status.equals(UserStatusEnum.DISABLE.getStatus())) {
+            userInfo.setUseSpace(0L);
+        }
+        userInfoMapper.updateById(userInfo);
+    }
+
+    @Override
+    public void changeUserSpace(String userId, Integer changeSpace) {
+        UserInfo userInfo = userInfoMapper.selectById(userId);
+        userInfo.setTotalSpace(changeSpace * Constants.MB);
+        userInfoMapper.updateById(userInfo);
+        UserSpaceDto userSpaceDto = redisComponent.resetUserSpace(userId);
+    }
+
     private String getQQAccessToken(String code) {
         String accessToken = null;
         String url = null;
