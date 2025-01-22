@@ -1,8 +1,6 @@
-package com.wzypan.entity.po;
+package com.wzypan.entity.dto;
 
-import com.baomidou.mybatisplus.annotation.IdType;
 import java.util.Date;
-import com.baomidou.mybatisplus.annotation.TableId;
 import java.io.Serializable;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -10,7 +8,7 @@ import lombok.experimental.Accessors;
 
 /**
  * <p>
- * 
+ *
  * </p>
  *
  * @author wzy
@@ -19,14 +17,8 @@ import lombok.experimental.Accessors;
 @Data
 @EqualsAndHashCode(callSuper = false)
 @Accessors(chain = true)
-public class FileShare implements Serializable {
+public class FileShareInfoDto implements Serializable {
 
-    private static final long serialVersionUID = 1L;
-
-    /**
-     * 分享链接id
-     */
-    @TableId(value = "share_id", type = IdType.INPUT)
     private String shareId;
 
     /**
@@ -63,4 +55,29 @@ public class FileShare implements Serializable {
      * 查看次数
      */
     private Integer showCount;
+
+
+    private String fileName;
+
+    /**
+     * 0:文件 1:目录
+     */
+    private Integer folderType;
+
+    /**
+     * 1:视频 2:音频  3:图片 4:文档 5:其他
+     */
+    private Integer fileCategory;
+
+    /**
+     * 1:视频 2:音频  3:图片 4:pdf 5:doc 6:excel 7:txt 8:code 9:zip 10:其他
+     */
+    private Integer fileType;
+
+    /**
+     * 封面
+     */
+    private String fileCover;
+
+
 }

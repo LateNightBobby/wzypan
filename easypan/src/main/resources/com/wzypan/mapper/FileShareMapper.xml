@@ -29,7 +29,7 @@
         share_id, s.file_id, s.user_id, valid_type, expire_time, share_time, code, show_count
     </sql>
 
-    <select id="selectPageWithJoin" resultMap="BaseResultMap">
+    <select id="selectPageWithJoin" resultType="com.wzypan.entity.dto.FileShareInfoDto">
         select <include refid="Base_Column_List"/>
             ,f.file_name,f.folder_type,f.file_category,f.file_type,f.file_cover
         FROM file_share s

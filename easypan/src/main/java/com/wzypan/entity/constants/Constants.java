@@ -10,6 +10,8 @@ public class Constants {
 
     public static final String SESSION_KEY = "session_key";
 
+    public static final String SESSION_SHARE_KEY = "session_share_key_";
+
     public static final String FILE_FOLDER_FILE = "/file/";
     public static final String FILE_FOLDER_AVATAR_NAME = "avatar/";
     public static final String AVATAR_SUFFIX = ".jpg";

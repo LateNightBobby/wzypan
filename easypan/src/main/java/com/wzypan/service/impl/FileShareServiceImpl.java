@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.wzypan.entity.constants.Constants;
+import com.wzypan.entity.dto.FileShareInfoDto;
 import com.wzypan.entity.enums.ResponseCodeEnum;
 import com.wzypan.entity.enums.ShareValidTypeEnums;
 import com.wzypan.entity.page.PageBean;
@@ -43,7 +44,7 @@ public class FileShareServiceImpl extends ServiceImpl<FileShareMapper, FileShare
         wrapper.eq(FileShare::getUserId, userId);
         Page<FileShare> page = new Page<>(pageQuery.getPageNo()==null? 1: pageQuery.getPageNo(), pageQuery.getPageSize()==null? 15: pageQuery.getPageSize());
 //        IPage iPage = fileShareMapper.selectPage(page, wrapper);
-        List<FileShare> fileShares = fileShareMapper.selectPageWithJoin(page, userId);
+        List<FileShareInfoDto> fileShares = fileShareMapper.selectPageWithJoin(page, userId);
         return PageBean.convertFromPage(page).setList(fileShares);
     }
 
