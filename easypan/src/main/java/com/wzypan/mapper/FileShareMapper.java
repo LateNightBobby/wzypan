@@ -21,4 +21,6 @@ public interface FileShareMapper extends BaseMapper<FileShare> {
     List<FileShareInfoDto> selectPageWithJoin(Page<FileShare> page, @Param("userId") String userId);
 
     Integer deleteFileShareBatch(@Param("shareIdArray") String[] shareIdArray, @Param("userId") String userId);
+
+    void incrShareShowCount(@Param("shareId") String shareId);
 }

@@ -1,13 +1,18 @@
 package com.wzypan.controller;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.wzypan.annotation.GlobalInterceptor;
 import com.wzypan.annotation.VerifyParam;
 import com.wzypan.entity.Result;
 import com.wzypan.entity.constants.Constants;
+import com.wzypan.entity.dto.FileInfoDto;
 import com.wzypan.entity.dto.FileShareDto;
+import com.wzypan.entity.dto.SessionShareDto;
 import com.wzypan.entity.dto.SessionWebUserDto;
 import com.wzypan.entity.enums.FileDelFlagEnum;
 import com.wzypan.entity.enums.ResponseCodeEnum;
+import com.wzypan.entity.page.PageBean;
+import com.wzypan.entity.page.PageQuery;
 import com.wzypan.entity.po.FileInfo;
 import com.wzypan.entity.po.FileShare;
 import com.wzypan.entity.po.UserInfo;
@@ -16,13 +21,18 @@ import com.wzypan.mapper.FileInfoMapper;
 import com.wzypan.service.FileInfoService;
 import com.wzypan.service.FileShareService;
 import com.wzypan.service.UserInfoService;
+import com.wzypan.utils.CopyTools;
+import com.wzypan.utils.StringTools;
 import org.springframework.beans.BeanUtils;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpSession;
 import java.util.Date;
+import java.util.List;
 
 @RestController("WebShareController")
 @RequestMapping("/showShare")
@@ -40,21 +50,59 @@ public class WebShareController {
     @Resource
     private UserInfoService userInfoService;
 
-    @RequestMapping("/getShareLoginInfo")
-    @GlobalInterceptor(checkParams = true, checkLogin = true)
+    @PostMapping("/getShareLoginInfo")
+    @GlobalInterceptor(checkParams = true)
     public Result getShareLoginInfo(HttpSession session, @VerifyParam(required = true) String shareId) {
-        SessionWebUserDto webUserDto = (SessionWebUserDto) session.getAttribute(Constants.SESSION_KEY);
-        String curUserId = webUserDto.getUserId();
+        SessionShareDto sessionShareDto = (SessionShareDto) session.getAttribute(Constants.SESSION_SHARE_KEY + shareId);
+        if (sessionShareDto==null) {
+//            return Result.error(ResponseCodeEnum.CODE_902.getCode(), "invalid shareId");
+            return Result.success();
+        }
         FileShareDto fileShareDto = getShareFileDto(shareId);
-        fileShareDto.setCurrentUser(curUserId.equals(fileShareDto.getUserId()));
+        SessionWebUserDto webUserDto = (SessionWebUserDto) session.getAttribute(Constants.SESSION_KEY);
+        if (webUserDto!=null && webUserDto.getUserId().equals(fileShareDto.getUserId())) {
+            fileShareDto.setCurrentUser(true);
+        } else {
+            fileShareDto.setCurrentUser(false);
+        }
         return Result.success(fileShareDto);
     }
 
-    @RequestMapping("/getShareInfo")
-    @GlobalInterceptor(checkLogin = true, checkParams = true)
-    public Result getShareInfo(HttpSession session, @VerifyParam(required = true) String shareId) {
+    @PostMapping("/getShareInfo")
+    @GlobalInterceptor(checkParams = true)
+    public Result getShareInfo(@VerifyParam(required = true) String shareId) {
 
         return Result.success(getShareFileDto(shareId));
+    }
+
+    @PostMapping("/checkShareCode")
+    @GlobalInterceptor(checkParams = true)
+    public Result checkShareCode(HttpSession session,
+                                 @VerifyParam(required = true) String shareId,
+                                 @VerifyParam(required = true) String code) {
+//        SessionShareDto sessionShareDto = (SessionShareDto) session.getAttribute(Constants.SESSION_SHARE_KEY + shareId);
+        SessionShareDto sessionShareDto = fileShareService.checkShareCode(shareId, code);
+        session.setAttribute(Constants.SESSION_SHARE_KEY + shareId, sessionShareDto);
+        return Result.success();
+    }
+
+    @PostMapping("/loadFileList")
+    @GlobalInterceptor(checkParams = true)
+    public Result loadFileList(HttpSession session, PageQuery pageQuery,
+                               @VerifyParam(required = true) String shareId,
+                               String filePid) {
+        SessionShareDto sessionShareDto = checkShare(session, shareId);
+        LambdaQueryWrapper<FileInfo> wrapper = new LambdaQueryWrapper<>();
+        if (filePid!=null && !StringTools.isEmpty(filePid) && !filePid.equals("0")) {
+            fileInfoService.checkRootFilePid(sessionShareDto.getFileId(), sessionShareDto.getShareUserId(), filePid);
+            wrapper.eq(FileInfo::getFilePid, filePid);
+        }
+        wrapper.eq(FileInfo::getDelFlag, FileDelFlagEnum.USING.getFlag())
+                .eq(FileInfo::getFileId, sessionShareDto.getFileId())
+                .eq(FileInfo::getUserId, sessionShareDto.getShareUserId());
+        PageBean fileInfoPage = fileInfoService.pageDataList(pageQuery, wrapper);
+        fileInfoPage.setList(CopyTools.copyList(fileInfoPage.getList(), FileInfoDto.class));
+        return Result.success(fileInfoPage);
     }
 
     private FileShareDto getShareFileDto(String shareId) {
@@ -63,8 +111,8 @@ public class WebShareController {
             throw new BusinessException(ResponseCodeEnum.CODE_902.getMsg());
         }
 
-        FileShareDto fileShareDto = new FileShareDto();
-        BeanUtils.copyProperties(fileShare, fileShareDto);
+        FileShareDto fileShareDto = CopyTools.copy(fileShare, FileShareDto.class);
+//        BeanUtils.copyProperties(fileShare, fileShareDto);
 
         FileInfo fileInfo = fileInfoMapper.selectByUserIdAndFileId(fileShareDto.getUserId(), fileShareDto.getFileId());
         if (fileInfo==null || !FileDelFlagEnum.USING.getFlag().equals(fileInfo.getDelFlag())) {
@@ -76,6 +124,17 @@ public class WebShareController {
 
         fileShareDto.setNickName(userInfo.getNickName()).setAvatar(userInfo.getQqAvatar()).setUserId(userInfo.getUserId());
         return fileShareDto;
+    }
+
+    private SessionShareDto checkShare(HttpSession session, String shareId) {
+        SessionShareDto sessionShareDto = (SessionShareDto) session.getAttribute(Constants.SESSION_SHARE_KEY + shareId);
+        if (sessionShareDto==null) {
+            throw new BusinessException(ResponseCodeEnum.CODE_903);
+        }
+        if (sessionShareDto.getExpireTime()!=null && new Date().after(sessionShareDto.getExpireTime())) {
+            throw new BusinessException(ResponseCodeEnum.CODE_902);
+        }
+        return sessionShareDto;
     }
 
 }

@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.wzypan.entity.constants.Constants;
 import com.wzypan.entity.dto.FileShareInfoDto;
+import com.wzypan.entity.dto.SessionShareDto;
 import com.wzypan.entity.enums.ResponseCodeEnum;
 import com.wzypan.entity.enums.ShareValidTypeEnums;
 import com.wzypan.entity.page.PageBean;
@@ -78,5 +79,24 @@ public class FileShareServiceImpl extends ServiceImpl<FileShareMapper, FileShare
         if (count != shareIdArray.length) {
             throw new BusinessException(ResponseCodeEnum.CODE_600);
         }
+    }
+
+    @Override
+    public SessionShareDto checkShareCode(String shareId, String code) {
+        FileShare fileShare = fileShareMapper.selectById(shareId);
+        if (fileShare==null || fileShare.getExpireTime() != null && new Date().after(fileShare.getExpireTime())) {
+            throw new BusinessException(ResponseCodeEnum.CODE_902.getMsg());
+        }
+
+        if (!fileShare.getCode().equals(code)) {
+            throw new BusinessException("wrong share code");
+        }
+
+        //更新访问次数,可能存在并发
+        fileShareMapper.incrShareShowCount(shareId);
+
+        SessionShareDto sessionShareDto = new SessionShareDto().setShareUserId(fileShare.getUserId())
+                .setFileId(fileShare.getFileId()).setExpireTime(fileShare.getExpireTime()).setShareId(shareId);
+        return sessionShareDto;
     }
 }

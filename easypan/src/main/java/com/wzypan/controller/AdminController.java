@@ -17,6 +17,7 @@ import com.wzypan.entity.po.UserInfo;
 import com.wzypan.mapper.UserInfoMapper;
 import com.wzypan.service.FileInfoService;
 import com.wzypan.service.UserInfoService;
+import com.wzypan.utils.CopyTools;
 import com.wzypan.utils.RedisComponent;
 import org.springframework.beans.BeanUtils;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -49,14 +50,14 @@ public class AdminController {
     @Resource
     private UserInfoService userInfoService;
 
-    @RequestMapping("/getSysSettings")
+    @PostMapping("/getSysSettings")
     @GlobalInterceptor(checkLogin = true, checkAdmin = true)
     public Result getSysSettings() {
         SysSettingsDto sysSettingsDto = redisComponent.getSysSettingsDto();
         return Result.success(sysSettingsDto);
     }
 
-    @RequestMapping("/saveSysSettings")
+    @PostMapping("/saveSysSettings")
     @GlobalInterceptor(checkParams = true, checkAdmin = true)
     public Result saveSysSettings(
             @VerifyParam(required = true) String registerEmailTitle,
@@ -70,7 +71,7 @@ public class AdminController {
         return Result.success();
     }
 
-    @RequestMapping("/loadUserList")
+    @PostMapping("/loadUserList")
     @GlobalInterceptor(checkParams = true, checkAdmin = true)
     public Result loadUserList(PageQuery pageQuery, String nickNameFuzzy, Integer status) {
         Page<UserInfo> page = new Page<>(pageQuery.getPageNo()==null? 1: pageQuery.getPageNo(), pageQuery.getPageSize()==null? 15: pageQuery.getPageSize());
@@ -79,16 +80,17 @@ public class AdminController {
                 .eq(status!=null, UserInfo::getStatus, status);
         IPage filePage = userInfoMapper.selectPage(page, wrapper);
         List<UserInfo> userInfoList = filePage.getRecords();
-        List<UserDto> userDtos = userInfoList.stream()
-                .map(userInfo -> {
-                    UserDto dto = new UserDto();
-                    BeanUtils.copyProperties(userInfo, dto);
-                    return dto;
-                }).collect(Collectors.toList());
+        List<UserDto> userDtos = CopyTools.copyList(userInfoList, UserDto.class);
+//        List<UserDto> userDtos = userInfoList.stream()
+//                .map(userInfo -> {
+//                    UserDto dto = new UserDto();
+//                    BeanUtils.copyProperties(userInfo, dto);
+//                    return dto;
+//                }).collect(Collectors.toList());
         return Result.success(PageBean.convertFromPage(filePage).setList(userDtos));
     }
 
-    @RequestMapping("/updateUserStatus")
+    @PostMapping("/updateUserStatus")
     @GlobalInterceptor(checkAdmin = true, checkParams = true)
     public Result updateUserStatus(@VerifyParam(required = true) String userId,
                                    @VerifyParam(required = true) Integer status) {
@@ -96,7 +98,7 @@ public class AdminController {
         return Result.success();
     }
 
-    @RequestMapping("/updateUserSpace")
+    @PostMapping("/updateUserSpace")
     @GlobalInterceptor(checkAdmin = true, checkParams = true)
     public Result updateUserSpace(@VerifyParam(required = true) String userId,
                                    @VerifyParam(required = true) Integer changeSpace) {
@@ -104,7 +106,7 @@ public class AdminController {
         return Result.success();
     }
 
-    @RequestMapping("/loadFileList")
+    @PostMapping("/loadFileList")
     @GlobalInterceptor(checkAdmin = true, checkParams = true)
     public Result loadFileList(PageQuery pageQuery, String fileNameFuzzy, String filePid) {
         LambdaQueryWrapper<FileInfo> wrapper = new LambdaQueryWrapper<>();
@@ -114,7 +116,7 @@ public class AdminController {
         return Result.success(pageBean);
     }
 
-    @RequestMapping("/getFolderInfo")
+    @PostMapping("/getFolderInfo")
     @GlobalInterceptor(checkParams = true, checkAdmin = true)
     public Result getFolderInfo(@VerifyParam(required = true) String path, String shareId) {
 //        fileInfoService.getFolderInfo()
@@ -139,9 +141,9 @@ public class AdminController {
         return Result.success();
     }
 
-    @RequestMapping("/createDownloadUrl/{userId}/{fileId}")
+    @PostMapping("/createDownloadUrl/{userId}/{fileId}")
     @GlobalInterceptor(checkParams = true, checkAdmin = true)
-    public Result getFile(@PathVariable("userId") String userId,
+    public Result createDownloadUrl(@PathVariable("userId") String userId,
                           @PathVariable("fileId") String fileId) {
         return Result.success(fileInfoService.createDownloadUrl(userId, fileId));
     }

@@ -1,5 +1,6 @@
 package com.wzypan.service;
 
+import com.wzypan.entity.dto.SessionShareDto;
 import com.wzypan.entity.page.PageBean;
 import com.wzypan.entity.page.PageQuery;
 import com.wzypan.entity.po.FileShare;
@@ -20,5 +21,7 @@ public interface FileShareService extends IService<FileShare> {
     void saveShare(FileShare fileShare);
 
     void deleteFileShareBatch(String[] shareIdArray, String userId);
+
+    SessionShareDto checkShareCode(String shareId, String code);
 
 }

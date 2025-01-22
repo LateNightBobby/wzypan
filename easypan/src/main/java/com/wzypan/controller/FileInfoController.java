@@ -168,7 +168,7 @@ public class FileInfoController {
         return Result.success();
     }
 
-    @RequestMapping("/delFile")
+    @PostMapping("/delFile")
     @GlobalInterceptor(checkParams = true, checkLogin = true)
     public Result delFile(HttpSession session, @VerifyParam(required = true) String fileIds){
         SessionWebUserDto webUserDto = (SessionWebUserDto) session.getAttribute(Constants.SESSION_KEY);

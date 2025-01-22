@@ -52,4 +52,6 @@ public interface FileInfoService extends IService<FileInfo> {
 
     void delFileBatch(String userId, List<String> fileIdList, boolean adminOp);
 
+    void checkRootFilePid(String fileId, String userId, String filePid);
+
 }

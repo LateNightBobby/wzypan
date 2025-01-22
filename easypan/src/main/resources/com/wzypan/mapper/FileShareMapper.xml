@@ -37,4 +37,10 @@
         on s.file_id = f.file_id and f.user_id = #{userId}
     </select>
 
+    <update id="incrShareShowCount">
+        update file_share
+        set show_count = show_count + 1
+        where share_id = #{shareId}
+    </update>
+
 </mapper>

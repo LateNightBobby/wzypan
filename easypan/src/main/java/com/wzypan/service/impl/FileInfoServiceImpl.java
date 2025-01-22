@@ -110,6 +110,34 @@ public class FileInfoServiceImpl extends ServiceImpl<FileInfoMapper, FileInfo> i
     }
 
     @Override
+    public void checkRootFilePid(String fileId, String userId, String filePid) {
+        //当前文件id，用户id，要查询的目录id
+        if (StringTools.isEmpty(fileId)) {
+            throw new BusinessException(ResponseCodeEnum.CODE_600);
+        }
+
+        if (fileId.equals(filePid)) {
+            //处在当前文件夹
+            return;
+        }
+        checkFilePid(filePid, fileId, userId);
+    }
+
+    private void checkFilePid(String rootFilePid, String fileId, String userId) {
+        FileInfo fileInfo = fileInfoMapper.selectByUserIdAndFileId(userId, fileId);
+        if (fileInfo==null) {
+            throw new BusinessException(ResponseCodeEnum.CODE_600);
+        }
+        if (fileInfo.getFilePid().equals("0")) {
+            throw new BusinessException(ResponseCodeEnum.CODE_600);
+        }
+        if (fileInfo.getFilePath().equals(rootFilePid)) {
+            return;
+        }
+        checkFilePid(rootFilePid, fileInfo.getFilePid(), userId);
+    }
+
+    @Override
     //尝试多线程？
     @Transactional(rollbackFor = Exception.class)
     public UploadResultDto uploadFile(SessionWebUserDto userDto, String fileId, MultipartFile file,
