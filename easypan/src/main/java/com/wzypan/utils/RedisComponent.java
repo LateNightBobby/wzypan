@@ -62,8 +62,10 @@ public class RedisComponent {
     public UserSpaceDto getUserSpace(String userId) {
         UserSpaceDto userSpaceDto = (UserSpaceDto) redisUtils.get(Constants.REDIS_KEY_USER_SPACE_USE + userId);
         if (userSpaceDto == null) {
-            userSpaceDto = new UserSpaceDto().setUseSpace(fileInfoMapper.selectUseSpace(userId))
-                    .setTotalSpace(getSysSettingsDto().getUserInitUseSpace() * Constants.MB);
+            UserInfo userInfo = userInfoMapper.selectById(userId);
+            userSpaceDto = new UserSpaceDto().setUseSpace(userInfo.getUseSpace())
+//                    .setUseSpace(fileInfoMapper.selectUseSpace(userId)).setTotalSpace(getSysSettingsDto().getUserInitUseSpace() * Constants.MB);
+                    .setTotalSpace(userInfo.getTotalSpace());
             saveUserSpaceUse(userId, userSpaceDto);
         }
         return userSpaceDto;

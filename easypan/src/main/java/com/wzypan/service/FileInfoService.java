@@ -54,4 +54,6 @@ public interface FileInfoService extends IService<FileInfo> {
 
     void checkRootFilePid(String fileId, String userId, String filePid);
 
+    void saveShare(String shareRootFilePid, String shareFileIds, String myFolderId, String shareUserId, String curUserId);
+
 }

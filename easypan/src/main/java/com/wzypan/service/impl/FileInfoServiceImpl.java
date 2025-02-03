@@ -123,6 +123,66 @@ public class FileInfoServiceImpl extends ServiceImpl<FileInfoMapper, FileInfo> i
         checkFilePid(filePid, fileId, userId);
     }
 
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void saveShare(String shareRootFilePid, String shareFileIds, String myFolderId, String shareUserId, String curUserId) {
+        String[] shareFileIdArray = shareFileIds.split(",");
+        LambdaQueryWrapper<FileInfo> wrapper = new LambdaQueryWrapper<>();
+        //files in current folder
+        wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(FileInfo::getUserId, curUserId).eq(FileInfo::getFilePid, myFolderId).eq(FileInfo::getDelFlag, FileDelFlagEnum.USING.getFlag());
+        List<FileInfo> curFileList = fileInfoMapper.selectList(wrapper);
+        Map<String, FileInfo> curFileNameMap = curFileList.stream().collect(Collectors.toMap(FileInfo::getFileName, e-> e));
+        //files to be saved
+        wrapper = new LambdaQueryWrapper<>();
+        wrapper.in(FileInfo::getFileId, shareFileIds).eq(FileInfo::getUserId, shareUserId).eq(FileInfo::getDelFlag, FileDelFlagEnum.USING.getFlag());
+        List<FileInfo> targetFileList = fileInfoMapper.selectList(wrapper);
+        List<FileInfo> copyFileList = new ArrayList<>();
+        //检测是否存在重名
+        for (FileInfo item: targetFileList) {
+            if (curFileNameMap.get(item.getFileName()) != null) {
+                item.setFileName(StringTools.rename(item.getFileName()));
+            }
+            findAllSubFile(copyFileList, item, shareUserId, curUserId, myFolderId);
+        }
+        fileInfoMapper.insertBatch(copyFileList);
+
+        //更新使用空间
+        Long useSpace = fileInfoMapper.selectUseSpace(curUserId);
+        UserInfo userInfo = userInfoService.getById(curUserId);
+        if (useSpace > userInfo.getTotalSpace()) {
+            throw new BusinessException(ResponseCodeEnum.CODE_904);
+        }
+
+        userInfo.setUseSpace(useSpace);
+        userInfoService.updateById(userInfo);
+
+        UserSpaceDto userSpaceDto = redisComponent.getUserSpace(curUserId);
+        userSpaceDto.setUseSpace(useSpace);
+        redisComponent.saveUserSpaceUse(curUserId, userSpaceDto);
+    }
+
+    private void findAllSubFile(List<FileInfo> copyFileList, FileInfo fileInfo, String sourceUserId, String currentUserId, String newFilePid) {
+        String sourceFileId = fileInfo.getFileId();
+        Date curDate = new Date();
+        fileInfo.setCreateTime(curDate);
+        fileInfo.setLastUpdateTime(curDate);
+        fileInfo.setFilePid(newFilePid);
+        fileInfo.setUserId(currentUserId);
+        String newFileId = StringTools.getRandomString(10);
+        fileInfo.setFileId(newFileId);
+        copyFileList.add(fileInfo);
+        if (FileFolderTypeEnum.FOLDER.getType().equals(fileInfo.getFolderType())) {
+            LambdaQueryWrapper<FileInfo> wrapper = new LambdaQueryWrapper<>();
+            wrapper.eq(FileInfo::getFilePid, sourceFileId).eq(FileInfo::getUserId, sourceUserId)
+                    .eq(FileInfo::getDelFlag, FileDelFlagEnum.USING.getFlag());
+            List<FileInfo> sourceFileList = this.fileInfoMapper.selectList(wrapper);
+            for (FileInfo item : sourceFileList) {
+                findAllSubFile(copyFileList, item, sourceUserId, currentUserId, newFileId);
+            }
+        }
+    }
+
     private void checkFilePid(String rootFilePid, String fileId, String userId) {
         FileInfo fileInfo = fileInfoMapper.selectByUserIdAndFileId(userId, fileId);
         if (fileInfo==null) {
@@ -275,7 +335,8 @@ public class FileInfoServiceImpl extends ServiceImpl<FileInfoMapper, FileInfo> i
         if (fileId.endsWith(".ts")) {
             String[] tsArray = fileId.split("_");
             String realFileId = tsArray[0];
-            FileInfo fileInfo = fileInfoMapper.selectByUserIdAndFileId(userId, realFileId);
+//            FileInfo fileInfo = fileInfoMapper.selectByUserIdAndFileId(userId, realFileId);
+            FileInfo fileInfo = fileInfoMapper.selectById(realFileId);
             if (fileInfo == null) return;
             filePath = appConfig.getProjectFolder()+Constants.FILE_FOLDER_FILE+
                     StringTools.getFileNameNoSuffix(fileInfo.getFilePath())+"/"+fileId;
@@ -321,7 +382,10 @@ public class FileInfoServiceImpl extends ServiceImpl<FileInfoMapper, FileInfo> i
         LambdaQueryWrapper<FileInfo> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(userId!=null, FileInfo::getUserId, userId).eq(FileInfo::getFolderType, FileFolderTypeEnum.FOLDER.getType())
                 .in(FileInfo::getFileId, Arrays.asList(pathArray));
-        String orderSql = String.join(",", pathArray);
+//        String orderSql = String.join(",", pathArray);
+        String orderSql = Arrays.stream(pathArray)
+                .map(p -> "'" + p + "'") // 为每个元素加单引号
+                .collect(Collectors.joining(","));
         wrapper.last("ORDER BY FIELD(file_id, " + orderSql + ")");
         List<FileInfo> folderList = fileInfoMapper.selectList(wrapper);
         return folderList;
