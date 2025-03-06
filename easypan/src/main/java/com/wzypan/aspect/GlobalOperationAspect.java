@@ -2,6 +2,7 @@ package com.wzypan.aspect;
 
 import com.wzypan.annotation.GlobalInterceptor;
 import com.wzypan.annotation.VerifyParam;
+import com.wzypan.entity.WebUserContext;
 import com.wzypan.entity.constants.Constants;
 import com.wzypan.entity.dto.SessionWebUserDto;
 import com.wzypan.entity.enums.ResponseCodeEnum;
@@ -10,6 +11,7 @@ import com.wzypan.utils.VerifyUtils;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.aspectj.lang.JoinPoint;
+import org.aspectj.lang.annotation.After;
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.annotation.Before;
 import org.aspectj.lang.annotation.Pointcut;
@@ -33,6 +35,11 @@ public class GlobalOperationAspect {
     @Pointcut("@annotation(com.wzypan.annotation.GlobalInterceptor)")
     private void requestInterceptor() {
 
+    }
+
+    @After("requestInterceptor()")
+    public void afterInterceptor() {
+        WebUserContext.clear();
     }
 
     @Before("requestInterceptor()")
@@ -98,6 +105,7 @@ public class GlobalOperationAspect {
         HttpServletRequest request = ((ServletRequestAttributes) (Objects.requireNonNull(RequestContextHolder.getRequestAttributes()))).getRequest();
         HttpSession session = request.getSession();
         SessionWebUserDto userDto = (SessionWebUserDto) session.getAttribute(Constants.SESSION_KEY);
+        WebUserContext.setWebUser(userDto);
 
         if (userDto==null) {
             throw new BusinessException(ResponseCodeEnum.CODE_901);

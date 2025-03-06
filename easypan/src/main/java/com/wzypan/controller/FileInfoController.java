@@ -4,6 +4,7 @@ package com.wzypan.controller;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.wzypan.annotation.GlobalInterceptor;
 import com.wzypan.annotation.VerifyParam;
+import com.wzypan.entity.WebUserContext;
 import com.wzypan.entity.constants.Constants;
 import com.wzypan.entity.dto.FileInfoDto;
 import com.wzypan.entity.dto.SessionWebUserDto;
@@ -47,7 +48,8 @@ public class FileInfoController {
     public Result loadDataList(HttpSession session, PageQuery pageQuery, String category, String filePid, String fileNameFuzzy) {
 
         FileCategoryEnum categoryCode = FileCategoryEnum.getByCategory(category);
-        SessionWebUserDto userDto = (SessionWebUserDto) session.getAttribute(Constants.SESSION_KEY);
+//        SessionWebUserDto userDto = (SessionWebUserDto) session.getAttribute(Constants.SESSION_KEY);
+        SessionWebUserDto userDto = WebUserContext.getWebUser();
         LambdaQueryWrapper<FileInfo> wrapper = new LambdaQueryWrapper<>();
         //没有指定类别则找所有文件
         if (categoryCode!=null) {
